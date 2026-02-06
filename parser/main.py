@@ -340,6 +340,18 @@ def main():
         print(f"Error: File '{args.input_file}' not found.")
         sys.exit(1)
 
+    pot = args.input_file.split(".")
+    if len(pot) < 2:
+        print(f"Error: File {args.input_file} must have valid file extension")
+        sys.exit(1)
+
+    acceptable_extensions = ["c"]
+    if pot[-1] not in acceptable_extensions:
+        print(
+            f"Error: File {args.input_file} must have acceptable file extension ({acceptable_extensions})"
+        )
+        sys.exit(1)
+
     with open(args.input_file, "rb") as f:
         code_bytes = f.read()
 
