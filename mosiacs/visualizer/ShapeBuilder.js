@@ -87,90 +87,56 @@ class ShapeBuilder {
     }
 
     /**
-     * Build a trapezoid mesh from a shape profile.
-     * Uses per-face vertices (24 total) so each face gets correct flat normals.
-     * The shape tapers from a wider bottom to a narrower top (or inverted).
-     * Both X-width AND Z-depth taper, creating a true truncated pyramid / trapezoid prism.
+     * Build a trapezoid (frustum) mesh from a shape profile.
+     * 
+     * Uses Babylon's CreateCylinder with tessellation=4 to produce a square-
+     * cross-section frustum that tapers from a wider bottom to a narrower top
+     * (or inverted).  The cylinder is created centered at the origin, then we
+     * shift it UP by half its height so y=0 is the bottom face — this lets us
+     * place the mesh directly on the spiral path point and have it rise upward
+     * like a building sitting on a street.
      */
     createTrapezoidMesh(name, profile) {
         const h = this._rand(profile.heightMin, profile.heightMax);
         const tw = this._rand(profile.topWidthMin, profile.topWidthMax);
         const bw = this._rand(profile.bottomWidthMin, profile.bottomWidthMax);
-        const d = this._rand(profile.depthMin, profile.depthMax);
 
         // For inverted trapezoid, swap top and bottom
-        let topW, botW, topD, botD;
+        let topW, botW;
         if (profile.shape === 'invertedTrapezoid') {
-            topW = bw;  
-            botW = tw;  
-            topD = d;
-            botD = d * (botW / topW); // scale depth proportionally
+            topW = bw;
+            botW = tw;
         } else {
-            topW = tw;  
-            botW = bw;  
-            // Make depth taper similarly to width for true trapezoid shape
-            topD = d * 0.6; // top depth is proportionally smaller
-            botD = d;
+            topW = tw;
+            botW = bw;
         }
 
-        const tw2 = topW / 2, bw2 = botW / 2;
-        const td2 = topD / 2, bd2 = botD / 2;
+        console.log(`Creating ${name}: shape=${profile.shape}, topW=${topW.toFixed(2)}, botW=${botW.toFixed(2)}, h=${h.toFixed(2)}`);
 
-        // 8 corner positions of the frustum
-        // Bottom (y=0)
-        const b0 = [-bw2, 0,  bd2]; // bottom-left-front
-        const b1 = [ bw2, 0,  bd2]; // bottom-right-front
-        const b2 = [ bw2, 0, -bd2]; // bottom-right-back
-        const b3 = [-bw2, 0, -bd2]; // bottom-left-back
-        // Top (y=h)
-        const t0 = [-tw2, h,  td2]; // top-left-front
-        const t1 = [ tw2, h,  td2]; // top-right-front
-        const t2 = [ tw2, h, -td2]; // top-right-back
-        const t3 = [-tw2, h, -td2]; // top-left-back
+        // tessellation = 4 → square cross-section (building-like)
+        // Using diameterTop / diameterBottom to get the taper
+        const mesh = BABYLON.MeshBuilder.CreateCylinder(
+            name,
+            {
+                height: h,
+                diameterTop: topW,
+                diameterBottom: botW,
+                tessellation: 4,       // square footprint
+                subdivisions: 1
+            },
+            this.scene
+        );
 
-        // Per-face vertices (4 verts × 6 faces = 24 vertices)
-        // Each face duplicates its corner positions so normals are independent
-        const positions = [
-            // Front face (z positive)
-            ...b0, ...b1, ...t1, ...t0,
-            // Back face (z negative)
-            ...b2, ...b3, ...t3, ...t2,
-            // Right face (x positive)
-            ...b1, ...b2, ...t2, ...t1,
-            // Left face (x negative)
-            ...b3, ...b0, ...t0, ...t3,
-            // Top face (y = h)
-            ...t0, ...t1, ...t2, ...t3,
-            // Bottom face (y = 0)
-            ...b3, ...b2, ...b1, ...b0,
-        ];
+        // Babylon creates the cylinder centered at y=0 with no rotation.
+        // We want:
+        //   1. Rotate 45° so the flat faces align to world X/Z axes
+        //   2. Shift up by h/2 so the BASE sits at y=0 (building rises upward)
+        // Bake both transforms into the vertex data so position/rotation stay clean.
+        const bakeMatrix = BABYLON.Matrix.RotationY(Math.PI / 4)
+            .multiply(BABYLON.Matrix.Translation(0, h / 2, 0));
+        mesh.bakeTransformIntoVertices(bakeMatrix);
 
-        // Two triangles per face: 0,1,2 and 0,2,3
-        const indices = [];
-        for (let face = 0; face < 6; face++) {
-            const off = face * 4;
-            indices.push(off, off + 1, off + 2, off, off + 2, off + 3);
-        }
-
-        // Compute proper per-face normals
-        const normals = [];
-        BABYLON.VertexData.ComputeNormals(positions, indices, normals);
-
-        // UVs per face
-        const uvs = [];
-        for (let face = 0; face < 6; face++) {
-            uvs.push(0, 0,  1, 0,  1, 1,  0, 1);
-        }
-
-        const vertexData = new BABYLON.VertexData();
-        vertexData.positions = positions;
-        vertexData.indices = indices;
-        vertexData.normals = normals;
-        vertexData.uvs = uvs;
-
-        const mesh = new BABYLON.Mesh(name, this.scene);
-        vertexData.applyToMesh(mesh);
-
+        // Store dimensions for cap placement and stacking
         mesh._trapHeight = h;
         mesh._trapTopWidth = topW;
         mesh._trapBottomWidth = botW;
