@@ -43,12 +43,17 @@ class ExplodeManager {
                 return;
             }
 
-            // If a different building is exploded → collapse first, then explode new
+            // If a different building is exploded → collapse first, WAIT for animation, then explode new
             if (this.exploded) {
                 this._collapse();
+                // Wait for collapse animation to complete before exploding new building
+                setTimeout(() => {
+                    this._explode(buildingMesh);
+                }, 550); // Slightly longer than animation duration (500ms = 50 frames at 60fps)
+            } else {
+                // No building currently exploded, explode immediately
+                this._explode(buildingMesh);
             }
-
-            this._explode(buildingMesh);
         });
     }
 
@@ -224,17 +229,18 @@ class ExplodeManager {
             this.scene
         );
 
-        // ── target position: arrange in multiple rings (layers) ────────
+        // ── target position: arrange in multiple rings (layers) BUT CLOSER ──
         // Inner ring (layer 0): closer, medium ring (layer 1): mid-distance, outer ring (layer 2): far
-        const baseRingRadius = 4.0 + total * 0.15;
-        const ringRadius = baseRingRadius + (layer * 2.5);  // each layer pushes further out
+        // REDUCED ring radii for easier reading
+        const baseRingRadius = 2.5 + total * 0.08;  // was 4.0 + 0.15
+        const ringRadius = baseRingRadius + (layer * 1.5);  // was + layer * 2.5
         
         const angle = (index / total) * Math.PI * 2;
         const tx = center.x + Math.cos(angle) * ringRadius;
         const tz = center.z + Math.sin(angle) * ringRadius;
         
-        // Stagger vertically based on index and layer
-        const ty = center.y + buildingH * 0.5 + (index % 4) * 0.5 + (layer * 0.3);
+        // Stagger vertically based on index and layer - tighter spacing
+        const ty = center.y + buildingH * 0.5 + (index % 4) * 0.3 + (layer * 0.2);
 
         // Start at the building center (will animate outward)
         shard.position = center.clone();
@@ -243,16 +249,12 @@ class ExplodeManager {
         // Store final target for animation
         shard._targetPos = new BABYLON.Vector3(tx, ty, tz);
 
-        // ── Make shard face the CAMERA direction, not outward from center ──
-        // All shards should face toward where the camera will be positioned
-        // so the user can read them all clearly
+        // ── Make shard BILLBOARD MODE - always face the camera ──
+        shard.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+        
+        // Initial orientation toward camera (billboard will update continuously)
         const lookAtTarget = center.clone().add(cameraDir.scale(100));
         shard.lookAt(lookAtTarget);
-
-        // Add slight random tilt for a "shattered" feel - more chaotic on outer layers
-        // But keep it subtle so text remains readable
-        shard.rotation.x += (Math.random() - 0.5) * (0.15 + layer * 0.08);
-        shard.rotation.z += (Math.random() - 0.5) * (0.1 + layer * 0.05);
 
         // ── material with dynamic texture label ─────────────────────
         const mat = new BABYLON.StandardMaterial(name + '_mat', this.scene);
@@ -379,16 +381,16 @@ class ExplodeManager {
      * Returns position and direction vector.
      */
     _calculateCameraViewPosition(center, buildingHeight, shardCount) {
-        // Distance from center - CLOSER than before for zoom-in effect
-        // Base distance + scaling with shard count, but keeping it intimate
-        const viewDistance = 8 + (shardCount * 0.15); // Reduced from 12 + 0.3
+        // Distance from center - VERY CLOSE for easy reading
+        // Base distance + minimal scaling with shard count
+        const viewDistance = 6 + (shardCount * 0.08); // Much closer: was 8 + 0.15
         
         // Position camera at an angle that gives a good 3/4 view
         // Offset in X and Z, elevated in Y
         const offsetAngle = Math.PI / 4; // 45 degrees
         const offsetX = Math.cos(offsetAngle) * viewDistance;
         const offsetZ = Math.sin(offsetAngle) * viewDistance;
-        const offsetY = buildingHeight * 0.6; // closer to center height
+        const offsetY = buildingHeight * 0.4; // lower, closer to center
         
         const cameraPosition = new BABYLON.Vector3(
             center.x + offsetX,
