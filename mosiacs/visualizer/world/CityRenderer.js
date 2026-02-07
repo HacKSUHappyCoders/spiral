@@ -61,21 +61,39 @@ class CityRenderer {
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERMOVE) return;
 
+            // Check for main buildings, sub-spiral dots, and galaxy buildings
             const pick = this.scene.pick(
                 this.scene.pointerX, this.scene.pointerY,
-                (m) => m._buildingData != null
+                (m) => m._buildingData != null || m._subSpiralDot != null || m._isGalaxyBuilding != null
             );
 
-            if (pick && pick.hit && pick.pickedMesh && pick.pickedMesh._buildingData) {
-                const entry = this._entryForMesh(pick.pickedMesh);
-                if (entry && entry.label) {
-                    if (this._hoveredLabel && this._hoveredLabel !== entry.label)
-                        this._hoveredLabel.setEnabled(false);
-                    entry.label.setEnabled(true);
-                    this._hoveredLabel = entry.label;
+            if (pick && pick.hit && pick.pickedMesh) {
+                // Handle main building hover
+                if (pick.pickedMesh._buildingData) {
+                    const entry = this._entryForMesh(pick.pickedMesh);
+                    if (entry && entry.label) {
+                        if (this._hoveredLabel && this._hoveredLabel !== entry.label)
+                            this._hoveredLabel.isVisible = false;
+                        entry.label.isVisible = true;
+                        this._hoveredLabel = entry.label;
+                    }
+                }
+                // Handle sub-spiral dot hover
+                else if (pick.pickedMesh._subSpiralDot && pick.pickedMesh._label) {
+                    if (this._hoveredLabel && this._hoveredLabel !== pick.pickedMesh._label)
+                        this._hoveredLabel.isVisible = false;
+                    pick.pickedMesh._label.isVisible = true;
+                    this._hoveredLabel = pick.pickedMesh._label;
+                }
+                // Handle galaxy building hover
+                else if (pick.pickedMesh._isGalaxyBuilding && pick.pickedMesh._label) {
+                    if (this._hoveredLabel && this._hoveredLabel !== pick.pickedMesh._label)
+                        this._hoveredLabel.isVisible = false;
+                    pick.pickedMesh._label.isVisible = true;
+                    this._hoveredLabel = pick.pickedMesh._label;
                 }
             } else if (this._hoveredLabel) {
-                this._hoveredLabel.setEnabled(false);
+                this._hoveredLabel.isVisible = false;
                 this._hoveredLabel = null;
             }
         });
@@ -312,6 +330,15 @@ class CityRenderer {
     }
 
     /**
+     * Return the outer radius of the spiral based on the number of slots used.
+     * Useful for dynamically positioning the camera.
+     */
+    getSpiralRadius() {
+        const maxSlot = Math.max(this._nextSlot - 1, 0);
+        return this.spiralRadiusStart + maxSlot * this.spiralRadiusGrowth;
+    }
+
+    /**
      * Build a map from entity key → world position for the sub-spiral renderer.
      */
     _buildPositionMap() {
@@ -473,7 +500,6 @@ class CityRenderer {
         const label = this._createFloatingLabel(
             `fnLabel_${fn.key}`, `${fn.name}()${invLabel}`, pos.clone(), height + 0.5, color
         );
-        label.setEnabled(false);
         label.isPickable = false;
 
         mesh._buildingData = {
@@ -565,7 +591,6 @@ class CityRenderer {
 
         const labelText = `${v.name} = ${v.currentValue}`;
         const label = this._createFloatingLabel(`varLabel_${v.key}`, labelText, pos.clone(), height + 1.3, color);
-        label.setEnabled(false);
         label.isPickable = false;
 
         mesh._buildingData = {
@@ -683,7 +708,6 @@ class CityRenderer {
         const typeLabel = loopType.toUpperCase();
         const labelText = `${typeLabel} (${loop.condition}) ×${loop.iterations}`;
         const label = this._createFloatingLabel(`loopLabel_${loop.key}`, labelText, pos.clone(), height + 2, color);
-        label.setEnabled(false);
         label.isPickable = false;
 
         mesh._buildingData = {
@@ -771,7 +795,6 @@ class CityRenderer {
 
         const labelText = `IF (${br.condition}) → ${br.result ? 'true' : 'false'}`;
         const label = this._createFloatingLabel(`brLabel_${br.key}`, labelText, pos.clone(), height + 1, color);
-        label.setEnabled(false);
         label.isPickable = false;
 
         mesh._buildingData = {

@@ -114,8 +114,8 @@ class CodeVisualizer {
         // Re-enable material updates
         scene.blockMaterialDirtyMechanism = false;
 
-        // Reset camera to a good overview position
-        this.sceneManager.resetCamera();
+        // Reset camera to a good overview position based on spiral size
+        this.sceneManager.resetCamera(this.cityRenderer.getSpiralRadius());
 
         // Update stats
         this._updateStats(trace.length);
@@ -129,7 +129,7 @@ class CodeVisualizer {
     // ─── Camera ────────────────────────────────────────────────────
 
     resetCamera() {
-        this.sceneManager.resetCamera();
+        this.sceneManager.resetCamera(this.cityRenderer.getSpiralRadius());
     }
 
     // ─── Explode ───────────────────────────────────────────────────
