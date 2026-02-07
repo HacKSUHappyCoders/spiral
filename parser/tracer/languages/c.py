@@ -295,9 +295,14 @@ class CInstrumenter:
             if n.type == "identifier":
                 parent = n.parent
                 if not parent or parent.type not in self.EXCLUDE_TYPES:
-                    name = get_text(n, self.code_bytes)
-                    if name not in KEYWORDS:
-                        reads.append(name)
+                    # Skip function names in call expressions
+                    if (parent and parent.type == "call_expression"
+                            and parent.child_by_field_name("function") == n):
+                        pass
+                    else:
+                        name = get_text(n, self.code_bytes)
+                        if name not in KEYWORDS:
+                            reads.append(name)
             for c in n.children:
                 walk(c)
 

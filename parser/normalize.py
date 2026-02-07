@@ -1,5 +1,6 @@
 import json
 import sys
+from collections.abc import Callable
 
 
 def create_type_ASSIGN(
@@ -27,14 +28,14 @@ def create_type_BRANCH(
     }
 
 
-def create_type_CALL(
-    subject: str, stack_depth: int, format_spec: str = "", args: str = ""
-):
+def create_type_CALL(*fields):
+    # fields: name [, param_val ...], stack_depth
+    subject = fields[0]
+    stack_depth = fields[-1]
+    params = list(fields[1:-1])
     result = {"type": "CALL", "subject": subject, "stack_depth": stack_depth}
-    if format_spec:
-        result["format_spec"] = format_spec
-    if args:
-        result["args"] = args
+    if params:
+        result["args"] = params
     return result
 
 
@@ -127,9 +128,7 @@ def create_type_RETURN(
     return result
 
 
-def create_type_SWITCH(
-    subject: str, value: str, line_number: int, stack_depth: int
-):
+def create_type_SWITCH(subject: str, value: str, line_number: int, stack_depth: int):
     return {
         "type": "SWITCH",
         "subject": subject,
@@ -149,7 +148,12 @@ def create_type_CASE(label: str, line_number: int, stack_depth: int):
 
 
 def create_type_UPDATE(
-    subject: str, operator: str, value: str, address: str, line_number: int, stack_depth: int
+    subject: str,
+    operator: str,
+    value: str,
+    address: str,
+    line_number: int,
+    stack_depth: int,
 ):
     return {
         "type": "UPDATE",
@@ -184,7 +188,7 @@ def stdin_to_json(stdin_data: str):
     traces = []
     trace_id = 0
 
-    switch = {
+    switch: dict[str, Callable] = {
         "ASSIGN": create_type_ASSIGN,
         "BRANCH": create_type_BRANCH,
         "CALL": create_type_CALL,
