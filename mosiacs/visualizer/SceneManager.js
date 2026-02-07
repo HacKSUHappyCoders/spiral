@@ -30,6 +30,7 @@ class SceneManager {
         this.camera.lowerRadiusLimit = 10;
         this.camera.upperRadiusLimit = 150;
         this.camera.wheelPrecision = 5;
+        this.camera.panningSensibility = 200;
 
         this._setupLighting();
         this._setupGlowLayer();
