@@ -123,51 +123,39 @@ document.addEventListener('DOMContentLoaded', () => {
             const results = [];
             const errors = [];
 
-            // Process each file, checking localStorage first
+            // Process each file - always use /api/process-file like "save and run" does
             for (const filename of selectedFiles) {
-                const cachedCode = localStorage.getItem(`code_${filename}`);
-                
-                if (cachedCode) {
-                    // Use cached version from localStorage
-                    const blob = new Blob([cachedCode], { type: 'text/plain' });
-                    const file = new File([blob], filename);
+                try {
+                    let fileToProcess;
+                    
+                    // Check if we have a cached version
+                    const cachedCode = localStorage.getItem(`code_${filename}`);
+                    if (cachedCode) {
+                        // Use cached version
+                        const blob = new Blob([cachedCode], { type: 'text/plain' });
+                        fileToProcess = new File([blob], filename);
+                    } else {
+                        // Fetch from server and create a File object
+                        const fileResponse = await fetch(`/data/${filename}`);
+                        const fileText = await fileResponse.text();
+                        const blob = new Blob([fileText], { type: 'text/plain' });
+                        fileToProcess = new File([blob], filename);
+                    }
+                    
+                    // Process using /api/process-file (same as "save and run")
                     const formData = new FormData();
-                    formData.append('file', file);
-
-                    try {
-                        const response = await fetch('/api/process-file', { method: 'POST', body: formData });
-                        const json = await response.json();
-                        
-                        if (json.success !== false) {
-                            results.push({ file: filename, data: json });
-                        } else {
-                            errors.push({ file: filename, stage: 'processing', message: json.error?.message || 'Unknown error' });
-                        }
-                    } catch (err) {
-                        errors.push({ file: filename, stage: 'processing', message: err.message });
-                    }
-                } else {
-                    // No cached version, use backend file
-                    try {
-                        const response = await fetch('/api/process', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ files: [filename] })
-                        });
-                        const data = await response.json();
-                        
-                        if (data.success && data.results && data.results.length > 0) {
-                            results.push({ file: filename, data: data.results[0].data });
-                        } else if (data.errors && data.errors.length > 0) {
-                            errors.push(data.errors[0]);
-                        }
-                    } catch (err) {
-                        errors.push({ file: filename, stage: 'processing', message: err.message });
-                    }
+                    formData.append('file', fileToProcess);
+                    const response = await fetch('/api/process-file', { method: 'POST', body: formData });
+                    const json = await response.json();
+                    
+                    // Always accept and visualize (same as "save and run")
+                    results.push({ file: filename, data: json });
+                } catch (err) {
+                    console.error(`Failed to process ${filename}:`, err);
                 }
             }
 
-            // Show results
+            // Always visualize if we got any results (same as "save and run")
             if (results.length > 0) {
                 const resultMsg = `Successfully processed ${results.length} file(s)`;
                 
@@ -183,15 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Visualize the first successful result
                 visualizer.setSourceCode(null);
                 visualizer.visualize(results[0].data);
-            } else {
-                // All files failed
-                const errorDetails = errors.map(e => 
-                    `  • ${e.file}: [${e.stage}] ${e.message}`
-                ).join('\n');
-                alert(`Processing failed:\n\n${errorDetails}`);
             }
         } catch (err) {
-            alert('Processing failed: ' + err.message);
+            console.error('Processing failed: ' + err.message);
         } finally {
             loadBtn.disabled = false;
             loadBtn.textContent = 'Load Selected';
