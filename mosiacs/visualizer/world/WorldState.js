@@ -72,25 +72,6 @@ class WorldState {
     }
 
     /**
-     * Step forward by one event. Returns the step applied, or null.
-     */
-    stepForward() {
-        if (this.currentStep >= this.trace.length - 1) return null;
-        this._applyStep(this.currentStep + 1);
-        return this.trace[this.currentStep];
-    }
-
-    /**
-     * Step backward by one event.
-     */
-    stepBackward() {
-        if (this.currentStep < 0) return null;
-        const prev = this.currentStep - 1;
-        this.seekTo(prev);
-        return prev >= 0 ? this.trace[prev] : null;
-    }
-
-    /**
      * Get the current scope name (top of call stack, or "global").
      */
     currentScope() {

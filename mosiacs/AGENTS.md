@@ -202,3 +202,18 @@ This system is a runtime world simulation, not a code viewer.
 ---
 
 Implement the world as a simulation of program execution state over time.
+
+
+## PHASE TWO
+
+This is the next phase is the development of the application. Now that we have the buildings defined and looking good in the spiral, we now need to define when a building is created, in addition how a buildings color is defined and also how code inside of building blocks are defined and viewed. 
+
+Firstly, here are the rules for when buildings are created. So we will have 5 different types of builidns, for this new phase we are adding in while loops as a new bulidng. 
+
+Functions: new building on function invocation. Everytime the function is called a new building should be created
+Variables: On declaration make a new building, and also make sure that the variables values are stored throughout the course of program and you can see the flow of its values overtime.
+For loops: Each time the loop is at its first iteration make it a new building. 
+If statement: for each if statement make a building and make a chain of buildings for if, if else and else
+While: same as for loops
+
+Now to define the colors, we will do a combo of hash and specific coloring

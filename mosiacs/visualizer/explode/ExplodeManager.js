@@ -7,10 +7,8 @@
  * close button) collapses the inspector.
  */
 class ExplodeManager {
-    constructor(scene, camera, materialManager) {
+    constructor(scene) {
         this.scene  = scene;
-        this.camera = camera;
-        this.materialManager = materialManager;
 
         /** Currently inspected building (null when nothing is open) */
         this.exploded = null;

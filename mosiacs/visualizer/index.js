@@ -1,11 +1,10 @@
 /**
  * CodeVisualizer — Main orchestrator for the 3D visual debugger.
  *
- * Architecture (AGENTS.md compliant):
- *   WorldState         – runtime simulation: functions, variables, loops, branches, memory
- *   CityRenderer       – translates world snapshots into Babylon.js meshes
- *   SceneManager       – Babylon.js scene, camera, lights
- *   MaterialManager    – stained-glass material factory
+ * Architecture:
+ *   WorldState    – runtime simulation: functions, variables, loops, branches, memory
+ *   CityRenderer  – translates world snapshots into Babylon.js meshes
+ *   SceneManager  – Babylon.js scene, camera, lights
  *
  * A building represents a persistent runtime concept (function, variable,
  * loop, branch) — NOT a line of code or AST node.
@@ -19,7 +18,6 @@ class CodeVisualizer {
 
         // Managers — initialised in init()
         this.sceneManager = null;
-        this.materialManager = null;
         this.worldState = null;
         this.cityRenderer = null;
 
@@ -36,19 +34,15 @@ class CodeVisualizer {
         this.sceneManager.init();
 
         const scene = this.sceneManager.getScene();
-        const camera = this.sceneManager.getCamera();
-
-        // Material factory
-        this.materialManager = new MaterialManager(scene);
 
         // World state engine
         this.worldState = new WorldState();
 
         // City renderer — turns world snapshots into 3D geometry
-        this.cityRenderer = new CityRenderer(scene, this.materialManager);
+        this.cityRenderer = new CityRenderer(scene);
 
         // Explode manager for click-to-inspect
-        this.explodeManager = new ExplodeManager(scene, camera, this.materialManager);
+        this.explodeManager = new ExplodeManager(scene);
 
         return this;
     }

@@ -117,20 +117,6 @@ class SceneManager {
     }
 
     /**
-     * Update camera target
-     */
-    setCameraTarget(position) {
-        this.camera.setTarget(position);
-    }
-
-    /**
-     * Toggle scene animations
-     */
-    toggleAnimations(enabled) {
-        this.scene.animationsEnabled = enabled;
-    }
-
-    /**
      * Get the scene
      */
     getScene() {
