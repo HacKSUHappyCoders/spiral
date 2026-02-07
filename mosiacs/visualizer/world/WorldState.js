@@ -23,6 +23,7 @@ class WorldState {
         this.whileLoopFactories = new Map();
         this.branchIntersections = new Map();
         this.memoryNodes = new Map();
+        this.consoleOutputs = new Map();  // UNKNOWN events (console output)
 
         // Invocation counters for unique keys
         this._fnCallCount = new Map();
@@ -66,6 +67,7 @@ class WorldState {
         this.whileLoopFactories.clear();
         this.branchIntersections.clear();
         this.memoryNodes.clear();
+        this.consoleOutputs.clear();
         this._fnCallCount.clear();
         this._forLoopCount.clear();
         this._whileLoopCount.clear();
@@ -103,15 +105,17 @@ class WorldState {
         }
 
         switch (step.type) {
-            case 'CALL':      this._handleCall(step); break;
-            case 'RETURN':    this._handleReturn(step); break;
-            case 'DECL':      this._handleDecl(step); break;
-            case 'PARAM':     this._handleDecl(step); break;  // params are variable declarations
-            case 'ASSIGN':    this._handleAssign(step); break;
-            case 'READ':      this._handleRead(step); break;
-            case 'LOOP':      this._handleLoop(step); break;
-            case 'CONDITION': this._handleCondition(step); break;
-            case 'BRANCH':    this._handleBranch(step); break;
+            case 'CALL':         this._handleCall(step); break;
+            case 'RETURN':       this._handleReturn(step); break;
+            case 'DECL':         this._handleDecl(step); break;
+            case 'PARAM':        this._handleDecl(step); break;  // params are variable declarations
+            case 'ASSIGN':       this._handleAssign(step); break;
+            case 'READ':         this._handleRead(step); break;
+            case 'LOOP':         this._handleLoop(step); break;
+            case 'CONDITION':    this._handleCondition(step); break;
+            case 'BRANCH':       this._handleBranch(step); break;
+            case 'EXTERNAL_CALL': this._handleExternalCall(step); break;
+            case 'UNKNOWN':      this._handleUnknown(step); break;
         }
     }
 
@@ -140,7 +144,8 @@ class WorldState {
             localVars: [],
             returnValue: null,
             childStepIndices: [],
-            line: step.line || 0
+            line: step.line || 0,
+            sourceFile: step.sourceFile
         });
 
         this.creationOrder.push(key);
@@ -152,6 +157,35 @@ class WorldState {
             endStep: null,
             children: this.functionDistricts.get(key).childStepIndices
         });
+    }
+
+    // ─── EXTERNAL_CALL — library/external function calls ───────────
+
+    _handleExternalCall(step) {
+        const n = this._nextCount(this._fnCallCount, `extern_${step.name}`);
+        const key = `extern_${step.name}_#${n}`;
+
+        this.functionDistricts.set(key, {
+            key,
+            name: step.name,
+            depth: step.depth,
+            invocation: n,
+            enterStep: this.currentStep,
+            exitStep: this.currentStep,  // external calls are instantaneous
+            active: true,
+            localVars: [],
+            returnValue: null,
+            childStepIndices: [],
+            line: step.line || 0,
+            isExternal: true,            // flag for external calls
+            sourceFile: step.sourceFile,
+            args: step.args || []        // store arguments if available
+        });
+
+        this.creationOrder.push(key);
+
+        // External calls don't push onto the call stack
+        // They're instantaneous side-effects
     }
 
     // ─── RETURN ────────────────────────────────────────────────────
@@ -216,7 +250,8 @@ class WorldState {
                 lastWriter: this.currentStep,
                 declStep: this.currentStep,
                 active: true,
-                line: step.line || 0
+                line: step.line || 0,
+                sourceFile: step.sourceFile
             });
 
             this.creationOrder.push(key);
@@ -398,7 +433,8 @@ class WorldState {
                 steps: [this.currentStep],
                 childStepIndices: [],
                 _baseLookup: baseLookup,
-                line: step.line || 0
+                line: step.line || 0,
+                sourceFile: step.sourceFile
             };
             map.set(key, factory);
 
@@ -447,7 +483,8 @@ class WorldState {
             childStepIndices: [],
             chainLinks: [],
             _baseLookup: baseLookup,
-            line: step.line || 0
+            line: step.line || 0,
+            sourceFile: step.sourceFile
         };
         this.branchIntersections.set(key, intersection);
 
@@ -482,6 +519,30 @@ class WorldState {
         }
     }
 
+    // ─── UNKNOWN — console output / debug messages ─────────────────
+
+    _handleUnknown(step) {
+        // UNKNOWN events are typically console output (printf, etc.)
+        // Create a console output bubble for visualization
+        const key = `console_${this.currentStep}`;
+
+        // Extract message from args array
+        const message = (step.args && step.args.length > 0)
+            ? step.args.join(' ')
+            : 'Output';
+
+        this.consoleOutputs.set(key, {
+            key,
+            message,
+            step: this.currentStep,
+            line: step.line || 0,
+            scope: this.currentScope(),
+            sourceFile: step.sourceFile
+        });
+
+        this.creationOrder.push(key);
+    }
+
     // ─── Memory ────────────────────────────────────────────────────
 
     _registerMemoryNode(address, houseKey) {
@@ -506,6 +567,7 @@ class WorldState {
             whileLoops: [...this.whileLoopFactories.values()],
             branches: [...this.branchIntersections.values()],
             memory: [...this.memoryNodes.values()],
+            consoleOutputs: [...this.consoleOutputs.values()],
             readRelations: [...this.readRelations],
             callStack: [...this.callStack],
             currentEvent: this.currentStep >= 0 ? this.trace[this.currentStep] : null
