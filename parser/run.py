@@ -129,7 +129,6 @@ def deal(input, output=None, seed=None):
         f.write(stdout)
 
     # ── Normalize ───────────────────────────────────────────────
-    print(f"hy {seed=}")
     try:
         metadata, traces, seed = _normalize(stdout, seed)
     except Exception as e:
