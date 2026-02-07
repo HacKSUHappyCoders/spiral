@@ -597,14 +597,26 @@ class CityRenderer {
         connectionLine.isPickable = false;
         this.blackHoleConnections.push(connectionLine);
 
-        // Label with arguments if available
-        const argsStr = (fn.args && fn.args.length > 0) ? fn.args.join(', ') : '';
-        const labelText = argsStr ? `${fn.name}(${argsStr}) 📦` : `${fn.name}() 📦`;
-        const labelColor = { r: 0.6, g: 0.4, b: 0.8, a: 1.0 };
+        // Enhanced label with subject, line number, and invocation info
+        const invLabel = fn.invocation > 1 ? ` #${fn.invocation}` : '';
+        const lineInfo = fn.line ? ` @L${fn.line}` : '';
+        const labelText = `📦 ${fn.name}()${invLabel}${lineInfo}`;
+
+        const labelColor = { r: 0.8, g: 0.5, b: 0.95, a: 1.0 };
         const label = this._createFloatingLabel(
-            `blackholeLabel_${fn.key}`, labelText, blackHolePos.clone(), size + 0.5, labelColor
+            `blackholeLabel_${fn.key}`, labelText, blackHolePos.clone(), size + 0.8, labelColor
         );
         label.isPickable = false;
+
+        // Add a secondary label below showing "EXTERNAL CALL"
+        const typeLabel = this._createFloatingLabel(
+            `blackholeType_${fn.key}`,
+            'EXTERNAL',
+            blackHolePos.clone(),
+            -size * 0.3,
+            { r: 0.6, g: 0.4, b: 0.7, a: 0.9 }
+        );
+        typeLabel.isPickable = false;
 
         this._animateScaleIn(sphere);
         this._animateScaleIn(disk);
@@ -620,7 +632,16 @@ class CityRenderer {
         sphere._trapHeight = size;
         sphere._entityData = fn;
 
-        return { mesh: sphere, disk, label, connection: connectionLine, height: size, color: labelColor, type: 'blackhole' };
+        return {
+            mesh: sphere,
+            disk,
+            label,
+            typeLabel,
+            connection: connectionLine,
+            height: size,
+            color: labelColor,
+            type: 'blackhole'
+        };
     }
 
     _createFunctionDistrict(fn, pos, slot) {
@@ -1206,7 +1227,7 @@ class CityRenderer {
 
     _disposeEntry(entry) {
         if (!entry) return;
-        const disposable = ['mesh', 'cap', 'roof', 'chimney', 'truePath', 'falsePath', 'label', 'disk', 'connection', 'border'];
+        const disposable = ['mesh', 'cap', 'roof', 'chimney', 'truePath', 'falsePath', 'label', 'typeLabel', 'disk', 'connection', 'border'];
         disposable.forEach(k => {
             if (entry[k]) {
                 if (entry[k].material) entry[k].material.dispose();

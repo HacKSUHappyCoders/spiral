@@ -637,6 +637,7 @@ class PanoramicRenderer {
                 e.disk.material.alpha *= alpha;
             }
             if (e.label) e.label.setEnabled(false);
+            if (e.typeLabel) e.typeLabel.setEnabled(false);
         }
 
         // Dim console output bubbles
@@ -699,6 +700,7 @@ class PanoramicRenderer {
                 e.disk.material.alpha = 0.7;
             }
             if (e.label) e.label.setEnabled(true);
+            if (e.typeLabel) e.typeLabel.setEnabled(true);
         }
 
         // Restore console output bubbles

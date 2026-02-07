@@ -352,6 +352,8 @@ class ExplodeManager {
             this.cityRenderer.loopMeshes,
             this.cityRenderer.whileMeshes,
             this.cityRenderer.branchMeshes,
+            this.cityRenderer.blackHoleMeshes,
+            this.cityRenderer.consoleBubbles,
         ];
 
         const unsorted = [];
@@ -701,6 +703,9 @@ class ExplodeManager {
             case 'CALL':
                 html += this._buildFunctionInspector(bd, entity);
                 break;
+            case 'EXTERNAL_CALL':
+                html += this._buildExternalCallInspector(bd, entity);
+                break;
             case 'DECL':
                 html += this._buildVariableInspector(bd, entity);
                 break;
@@ -754,6 +759,69 @@ class ExplodeManager {
             h += `</div>`;
         }
 
+        return h;
+    }
+
+    // ── External Call ───────────────────────────────────────────────
+
+    _buildExternalCallInspector(bd, fn) {
+        let h = '';
+        h += `<div class="inspector-header" style="background: linear-gradient(135deg, #1a0033 0%, #4a148c 100%);">
+            <span class="inspector-icon">📦</span>
+            <span>${fn.name}()</span>
+            <span style="opacity: 0.7; font-size: 0.9em; margin-left: 8px;">EXTERNAL</span>
+        </div>`;
+
+        h += '<div class="inspector-body">';
+
+        // Function info
+        h += `<div class="inspector-row">
+            <span class="inspector-label">Function:</span>
+            <span class="inspector-value">${fn.name}</span>
+        </div>`;
+
+        if (fn.invocation !== undefined) {
+            h += `<div class="inspector-row">
+                <span class="inspector-label">Invocation:</span>
+                <span class="inspector-value">#${fn.invocation}</span>
+            </div>`;
+        }
+
+        if (fn.line !== undefined) {
+            h += `<div class="inspector-row">
+                <span class="inspector-label">Line:</span>
+                <span class="inspector-value">${fn.line}</span>
+            </div>`;
+        }
+
+        if (fn.depth !== undefined) {
+            h += `<div class="inspector-row">
+                <span class="inspector-label">Stack Depth:</span>
+                <span class="inspector-value">${fn.depth}</span>
+            </div>`;
+        }
+
+        if (fn.sourceFile) {
+            h += `<div class="inspector-row">
+                <span class="inspector-label">Source File:</span>
+                <span class="inspector-value">${fn.sourceFile}</span>
+            </div>`;
+        }
+
+        h += `<div class="inspector-row">
+            <span class="inspector-label">Step:</span>
+            <span class="inspector-value">${bd.stepIndex}</span>
+        </div>`;
+
+        // Arguments if available
+        if (fn.args && fn.args.length > 0) {
+            h += `<div class="inspector-row">
+                <span class="inspector-label">Arguments:</span>
+                <span class="inspector-value">${fn.args.join(', ')}</span>
+            </div>`;
+        }
+
+        h += '</div>'; // close inspector-body
         return h;
     }
 
