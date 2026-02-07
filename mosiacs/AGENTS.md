@@ -240,3 +240,8 @@ In this phase we will be creating a lot of different visual features that can be
 
 # Part 1: Revisualizing the way sub spirals are created
 - Instead of having the sub spirals apear going vertically down on building click, I think they should appear to circle around the building and go up. These spirals should be more compact but be bigger, so then you can click on the buildings inside of this sub spiral if deemed necessary. These subspirals should push out the main spiral. So if you open a sub spiral, the main spiral path should be pushed out as to let in room for this new sub spiral, and then when it goes away, the main spiral should go back to its noraml position. 
+
+# Part 2 - sub spiral galaxy formation and connection
+
+# Part 3 - Causailty Visualization
+- Each value that has been assigned, it should point to the value that created it. THis should come together to create a web. When you connect the values up, color the lines to be a color similar to the two values being connected up and make it look like a visually beautiful spider web.

@@ -13,8 +13,16 @@ class ExplodeManager {
         /** Reference to CityRenderer for on-demand sub-spiral rendering */
         this.cityRenderer = cityRenderer || null;
 
+        /** GalaxyWarpManager — set by CodeVisualizer after construction */
+        this.galaxyWarpManager = null;
+
         /** Currently inspected building (null when nothing is open) */
         this.exploded = null;
+
+        /** Double-click tracking */
+        this._lastClickTime = 0;
+        this._lastClickMesh = null;
+        this._dblClickThreshold = 350; // ms
 
         this._setupPointerObservable();
     }
@@ -45,6 +53,26 @@ class ExplodeManager {
 
             const buildingMesh = this._findBuildingMesh(pick.pickedMesh);
             if (!buildingMesh) return;
+
+            // ── Double-click detection → Galaxy Warp ──
+            const now = Date.now();
+            if (this._lastClickMesh === buildingMesh &&
+                (now - this._lastClickTime) < this._dblClickThreshold) {
+                // Double-click detected!
+                this._lastClickTime = 0;
+                this._lastClickMesh = null;
+
+                // Collapse any open inspector first
+                if (this.exploded) this._collapse();
+
+                // Warp to galaxy if this building has child steps
+                if (this.galaxyWarpManager && this.galaxyWarpManager.canWarp(buildingMesh)) {
+                    this.galaxyWarpManager.warpTo(buildingMesh);
+                    return;
+                }
+            }
+            this._lastClickTime = now;
+            this._lastClickMesh = buildingMesh;
 
             // Already inspecting this building → close
             if (this.exploded && this.exploded.mesh === buildingMesh) {

@@ -39,6 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Return from galaxy warp button
+    document.getElementById('returnToMainGalaxy').addEventListener('click', () => {
+        const returned = visualizer.returnFromGalaxy();
+        if (!returned) {
+            console.log('Not currently in a galaxy.');
+        }
+    });
+
     // Toggle animation button
     const toggleBtn = document.getElementById('toggleAnimation');
     toggleBtn.addEventListener('click', () => {

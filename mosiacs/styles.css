@@ -375,3 +375,35 @@ select option {
     background: linear-gradient(135deg, rgba(160, 120, 255, 0.25), rgba(100, 80, 200, 0.15));
     border-left: 3px solid #a078ff;
 }
+
+/* ─── Galaxy warp return button (glowing accent) ─── */
+
+#returnToMainGalaxy {
+    background: linear-gradient(
+        135deg,
+        rgba(120, 80, 255, 0.35) 0%,
+        rgba(80, 40, 200, 0.2) 100%
+    );
+    border: 1px solid rgba(160, 120, 255, 0.5);
+    color: rgba(220, 200, 255, 0.95);
+    font-weight: 600;
+    text-shadow: 0 0 8px rgba(160, 120, 255, 0.6);
+    animation: galaxyBtnPulse 2s ease-in-out infinite;
+}
+
+#returnToMainGalaxy:hover {
+    background: linear-gradient(
+        135deg,
+        rgba(140, 100, 255, 0.5) 0%,
+        rgba(100, 60, 220, 0.3) 100%
+    );
+    border-color: rgba(180, 140, 255, 0.7);
+    box-shadow:
+        0 0 16px rgba(140, 100, 255, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+@keyframes galaxyBtnPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(140, 100, 255, 0.2); }
+    50%      { box-shadow: 0 0 20px rgba(140, 100, 255, 0.5); }
+}

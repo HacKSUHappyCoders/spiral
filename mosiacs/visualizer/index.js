@@ -44,6 +44,10 @@ class CodeVisualizer {
         // Explode manager for click-to-inspect (pass cityRenderer for sub-spirals)
         this.explodeManager = new ExplodeManager(scene, this.cityRenderer);
 
+        // Galaxy warp manager — double-click to warp into sub-spiral galaxies
+        this.galaxyWarpManager = new GalaxyWarpManager(scene, this.sceneManager, this.cityRenderer);
+        this.explodeManager.galaxyWarpManager = this.galaxyWarpManager;
+
         return this;
     }
 
@@ -53,6 +57,11 @@ class CodeVisualizer {
     visualize(codeTrace) {
         // Clear previous city
         this.cityRenderer.clear();
+
+        // Clear any active galaxy warp
+        if (this.galaxyWarpManager) {
+            this.galaxyWarpManager.clear();
+        }
 
         // Parse the trace
         const trace = this.parser.parse(codeTrace);
@@ -91,6 +100,20 @@ class CodeVisualizer {
 
     collapseExplodedBuilding() {
         return this.explodeManager.collapseIfExploded();
+    }
+
+    // ─── Galaxy Warp ───────────────────────────────────────────────
+
+    returnFromGalaxy() {
+        if (this.galaxyWarpManager && this.galaxyWarpManager.isWarped()) {
+            this.galaxyWarpManager.returnToMainGalaxy(true);
+            return true;
+        }
+        return false;
+    }
+
+    isInGalaxy() {
+        return this.galaxyWarpManager && this.galaxyWarpManager.isWarped();
     }
 
     // ─── Animation toggle ──────────────────────────────────────────

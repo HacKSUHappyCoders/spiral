@@ -21,6 +21,7 @@
             <button id="resetCamera">Reset Camera</button>
             <button id="collapseBuilding">Close Inspector</button>
             <button id="toggleAnimation">Pause Animation</button>
+            <button id="returnToMainGalaxy" style="display:none;">⬅ Return to Main Galaxy</button>
         </div>
 
     </div>
@@ -30,6 +31,7 @@
         • Right mouse: Pan<br>
         • Scroll: Zoom<br>
         • <strong>Click a building</strong> to inspect its data<br>
+        • <strong>Double-click</strong> to warp into its sub-spiral galaxy<br>
         • Click again or press <strong>Close Inspector</strong> to dismiss<br>
         <br>
         <span id="stats"></span>
@@ -54,6 +56,7 @@
     <script src="visualizer/world/LabelHelper.js"></script>
     <script src="visualizer/world/MeshFactory.js"></script>
     <script src="visualizer/world/SubSpiralRenderer.js"></script>
+    <script src="visualizer/world/GalaxyWarpManager.js"></script>
     <script src="visualizer/world/CityRenderer.js"></script>
 
     <!-- Explode / inspector -->
