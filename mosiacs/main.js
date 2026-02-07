@@ -6,7 +6,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('renderCanvas');
     const visualizer = new CodeVisualizer(canvas);
-    
+
     // Initialize the visualizer
     visualizer.init();
 
@@ -119,9 +119,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const panoramicBtn = document.getElementById('togglePanoramic');
     panoramicBtn.addEventListener('click', () => {
         const isActive = visualizer.togglePanoramic();
+        // Panoramic toggle
         panoramicBtn.textContent = isActive ? '🌌 Exit Panoramic' : '🌌 Panoramic Render';
         panoramicBtn.classList.toggle('active', isActive);
     });
+
+    // Sequencer toggle
+    const seqBtn = document.getElementById('toggleSequencer');
+    if (seqBtn) {
+        seqBtn.addEventListener('click', () => {
+            const active = visualizer.toggleSequencer();
+            seqBtn.textContent = active ? '🎹 Hide Sequencer' : '🎹 Sequencer View';
+            seqBtn.classList.toggle('active', active);
+        });
+    }
 
     // Toggle memory pool button
     const memoryPoolBtn = document.getElementById('toggleMemoryPool');
