@@ -1,0 +1,186 @@
+{
+  "success": true,
+  "metadata": {
+    "file_name": "00002.c",
+    "file_path": "/srv/mosiacs/data/00002.c",
+    "file_size": "158",
+    "file_mode": "-rwxrwxrwx",
+    "modified": "2026-02-07 19:56:56",
+    "accessed": "2026-02-07 19:56:56",
+    "created": "2026-02-07 19:56:56",
+    "language": "C",
+    "total_lines": "16",
+    "non_blank_lines": "12",
+    "num_includes": "0",
+    "num_comments": "0",
+    "num_functions": "1",
+    "function_names": "main",
+    "num_variables": "1",
+    "num_assignments": "3",
+    "num_calls": "0",
+    "num_returns": "1",
+    "num_loops": "1",
+    "num_branches": "1",
+    "max_nesting_depth": "2"
+  },
+  "traces": [
+    {
+      "type": "CALL",
+      "subject": "main",
+      "stack_depth": "1",
+      "id": 0
+    },
+    {
+      "type": "DECL",
+      "subject": "x",
+      "value": "10",
+      "address": "0x7ffce293fe0c",
+      "line_number": "2",
+      "stack_depth": "1",
+      "id": 1
+    },
+    {
+      "type": "LOOP",
+      "subtype": "while",
+      "line_number": "4",
+      "stack_depth": "1",
+      "condition": "x > 0",
+      "condition_result": "1",
+      "id": 2
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "10",
+      "address": "0x7ffce293fe0c",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 3
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "x",
+      "value": "7",
+      "address": "0x7ffce293fe0c",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 4
+    },
+    {
+      "type": "LOOP",
+      "subtype": "while",
+      "line_number": "4",
+      "stack_depth": "1",
+      "condition": "x > 0",
+      "condition_result": "1",
+      "id": 5
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "7",
+      "address": "0x7ffce293fe0c",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 6
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "x",
+      "value": "4",
+      "address": "0x7ffce293fe0c",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 7
+    },
+    {
+      "type": "LOOP",
+      "subtype": "while",
+      "line_number": "4",
+      "stack_depth": "1",
+      "condition": "x > 0",
+      "condition_result": "1",
+      "id": 8
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "4",
+      "address": "0x7ffce293fe0c",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 9
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "x",
+      "value": "1",
+      "address": "0x7ffce293fe0c",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 10
+    },
+    {
+      "type": "LOOP",
+      "subtype": "while",
+      "line_number": "4",
+      "stack_depth": "1",
+      "condition": "x > 0",
+      "condition_result": "1",
+      "id": 11
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "1",
+      "address": "0x7ffce293fe0c",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 12
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "x",
+      "value": "-2",
+      "address": "0x7ffce293fe0c",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 13
+    },
+    {
+      "type": "CONDITION",
+      "subject": "x > 0",
+      "condition_result": "0",
+      "line_number": "8",
+      "stack_depth": "1",
+      "id": 14
+    },
+    {
+      "type": "BRANCH",
+      "subtype": "else",
+      "condition": "x > 0",
+      "line_number": "8",
+      "stack_depth": "1",
+      "id": 15
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "x",
+      "value": "0",
+      "address": "0x7ffce293fe0c",
+      "line_number": "11",
+      "stack_depth": "1",
+      "id": 16
+    },
+    {
+      "type": "RETURN",
+      "subtype": "x",
+      "value": "0",
+      "line_number": "14",
+      "stack_depth": "1",
+      "address": "0x7ffce293fe0c",
+      "id": 17
+    }
+  ],
+  "seed": 13876653239935969693
+}
