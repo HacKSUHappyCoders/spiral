@@ -21,23 +21,24 @@ class BuildingFactory {
      * @param {string} type - operation type (CALL, ASSIGN, etc.)
      * @param {object} stepData - the parsed trace step (has depth, name, etc.)
      * @param {number} parentY - the Y offset contributed by the parent CALL building height
+     * @param {Array} childSteps - parsed trace steps that belong inside this building
      */
-    createBuilding(step, position, color, type, stepData, parentY) {
+    createBuilding(step, position, color, type, stepData, parentY, childSteps) {
         const profile = this.shapeBuilder.getShapeProfile(type);
 
-        // Create the trapezoid mesh
+        // Create the trapezoid mesh (base is at y=0 in local space)
         const building = this.shapeBuilder.createTrapezoidMesh(`building_${step}`, profile);
 
-        // Position: place on the spiral path.
-        // For non-CALL operations, offset upward by their parent's height
-        // so they visually "build off" the parent CALL.
+        // Position: place directly ON the spiral path point.
         building.position = position.clone();
+
+        // For non-CALL operations, stack upward on their parent CALL
         if (type !== 'CALL' && parentY > 0) {
-            building.position.y += parentY * 0.3; // partial stack on parent
+            building.position.y += parentY * 0.3;
         }
 
         // Slight random rotation for organic feel
-        building.rotation.y = Math.random() * 0.3 - 0.15;
+        building.rotation.y += Math.random() * 0.3 - 0.15;
 
         // Create stained glass material
         const material = this.materialManager.createStainedGlassMaterial(`mat_${step}`, color);
@@ -49,7 +50,16 @@ class BuildingFactory {
         // Animate building and cap
         this.animationController.animateScaleIn(building, step);
         this.animationController.animateScaleIn(cap, `cap_${step}`);
-        this.animationController.addFloatingAnimation(building, step);
+
+        // ── Store metadata on the mesh so ExplodeManager can read it ──
+        building._buildingData = {
+            step: step,
+            stepData: stepData,
+            color: color,
+            type: type,
+            childSteps: childSteps || [],
+            capMesh: cap
+        };
 
         return {
             mesh: building,

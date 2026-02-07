@@ -35,6 +35,7 @@ class SceneManager {
         this._setupGlowLayer();
         this._startRenderLoop();
         this._setupResizeHandler();
+        this.resetCamera();
 
         return this;
     }
