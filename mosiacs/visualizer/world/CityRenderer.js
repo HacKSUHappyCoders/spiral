@@ -1,3 +1,4 @@
+
 /**
  * CityRenderer — Phase 2
  *
@@ -83,7 +84,7 @@ class CityRenderer {
     // ─── Spiral geometry ───────────────────────────────────────────
 
     _spiralPosition(slot) {
-        const angle  = slot * this.spiralAngleStep;
+        const angle = getSpiralAngle(slot);
         const radius = this.spiralRadiusStart + slot * this.spiralRadiusGrowth;
         const totalH = Math.max(this._nextSlot, 1) * this.spiralHeightStep;
         const y = totalH - slot * this.spiralHeightStep;
@@ -93,16 +94,20 @@ class CityRenderer {
     }
 
     _slotFor(key) {
-        if (!this._slotMap.has(key)) this._slotMap.set(key, this._nextSlot++);
+        if (!this._slotMap.has(key)) {
+            this._slotMap.set(key, this._nextSlot);
+            this._nextSlot += 4;
+        }
         return this._slotMap.get(key);
     }
 
     _spiralTangentAngle(slot) {
-        const angle  = slot * this.spiralAngleStep;
+        const angle = getSpiralAngle(slot);
         const radius = this.spiralRadiusStart + slot * this.spiralRadiusGrowth;
-        const dx = -Math.sin(angle) * this.spiralAngleStep * radius
+        const dTheta = getSpiralAngleStep(slot);
+        const dx = -Math.sin(angle) * dTheta * radius
                   + Math.cos(angle) * this.spiralRadiusGrowth;
-        const dz =  Math.cos(angle) * this.spiralAngleStep * radius
+        const dz =  Math.cos(angle) * dTheta * radius
                   + Math.sin(angle) * this.spiralRadiusGrowth;
         return Math.atan2(dx, dz);
     }
