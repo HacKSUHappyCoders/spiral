@@ -230,6 +230,7 @@ class CityRenderer {
         // Keep references for on-demand sub-spiral rendering and re-rendering
         this._lastTrace = snapshot.trace || [];
         this._lastSnapshot = snapshot;
+        this._error = snapshot.error || null;
 
         // Pre-assign spiral slots in trace-creation order so that
         // buildings are interleaved along the spiral based on when they
@@ -255,6 +256,130 @@ class CityRenderer {
 
         // Freeze all meshes whose world matrix won't change any more
         this._freezeStaticMeshes();
+    }
+
+    // ─── Error checking ────────────────────────────────────────────
+
+    /**
+     * Check if a building is at or after an error line.
+     * For compile errors with line numbers: colors nodes at/after the error line red.
+     * For runtime errors without line numbers: doesn't color anything red (crash happened after trace).
+     * @param {object} entity - The building entity (function, variable, etc.)
+     * @returns {boolean} True if this entity is in error state
+     */
+    _isErrorNode(entity) {
+        if (!this._error) return false;
+
+        // Runtime errors without line numbers: don't color trace red (crash after trace)
+        if (!this._error.line) return false;
+
+        // Compile errors with line numbers: color nodes at/after error line red
+        if (!entity.line) return false;
+        return entity.line >= this._error.line;
+    }
+
+    /**
+     * Check if a building is exactly at the error line, or is the last step for runtime errors.
+     * @param {object} entity - The building entity
+     * @returns {boolean} True if this is the error indicator node
+     */
+    _isExactErrorNode(entity) {
+        if (!this._error) return false;
+
+        // Compile error with line number: mark exact line
+        if (this._error.line && entity.line) {
+            return entity.line === this._error.line;
+        }
+
+        // Runtime error without line: mark the last step in the trace
+        if (!this._error.line && this._error.stage === 'runtime') {
+            return this._isLastStep(entity);
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if this entity is the last step in the trace.
+     * @param {object} entity - The building entity
+     * @returns {boolean} True if this is the last executed step
+     */
+    _isLastStep(entity) {
+        if (!this._lastTrace || this._lastTrace.length === 0) return false;
+
+        const lastStep = this._lastTrace.length - 1;
+
+        // Check various step fields that might indicate this is the last step
+        if (entity.enterStep === lastStep) return true;
+        if (entity.declStep === lastStep) return true;
+        if (entity.step === lastStep) return true;
+        if (entity.steps && entity.steps.length > 0) {
+            return entity.steps[entity.steps.length - 1] === lastStep;
+        }
+
+        return false;
+    }
+
+    /**
+     * Create a visual error indicator above a building.
+     * @param {string} key - Unique key for the error indicator
+     * @param {BABYLON.Vector3} pos - Position of the building
+     * @param {number} height - Height of the building
+     * @returns {BABYLON.Mesh} The error indicator mesh
+     */
+    _createErrorIndicator(key, pos, height) {
+        // Create a glowing sphere
+        const size = 0.8;
+        const indicator = BABYLON.MeshBuilder.CreateSphere(`errorIndicator_${key}`, {
+            diameter: size, segments: 8
+        }, this.scene);
+
+        indicator.position = pos.clone();
+        indicator.position.y += height + 1.5;
+
+        // Bright red glowing material
+        const mat = new BABYLON.StandardMaterial(`errorIndicatorMat_${key}`, this.scene);
+        mat.diffuseColor = new BABYLON.Color3(1, 0.1, 0.1);
+        mat.emissiveColor = new BABYLON.Color3(0.8, 0, 0);
+        mat.alpha = 0.95;
+        indicator.material = mat;
+        indicator.isPickable = false;
+
+        // Add error label
+        const errorLabel = this._createFloatingLabel(
+            `errorLabel_${key}`, '[!]', pos.clone(), height + 1.5,
+            { r: 1, g: 0.2, b: 0.2, a: 1 }
+        );
+        errorLabel.isPickable = false;
+
+        // Pulsing animation
+        this._pulseAnimation(indicator);
+
+        return indicator;
+    }
+
+    /**
+     * Add a pulsing animation to a mesh.
+     * @param {BABYLON.Mesh} mesh - The mesh to animate
+     */
+    _pulseAnimation(mesh) {
+        const anim = new BABYLON.Animation(
+            'errorPulse',
+            'scaling',
+            30,
+            BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+            BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+        );
+
+        const keys = [
+            { frame: 0, value: new BABYLON.Vector3(1, 1, 1) },
+            { frame: 15, value: new BABYLON.Vector3(1.3, 1.3, 1.3) },
+            { frame: 30, value: new BABYLON.Vector3(1, 1, 1) }
+        ];
+
+        anim.setKeys(keys);
+        mesh.animations = [anim];
+        this.scene.beginAnimation(mesh, 0, 30, true);
     }
 
     // ─── On-demand sub-spiral API (called by ExplodeManager) ───────
@@ -648,7 +773,14 @@ class CityRenderer {
         const height = 4 + fn.depth * 2.5;
         const width = 3.5;
         const tangentAngle = this._spiralTangentAngle(slot);
-        const color = ColorHash.colorWithFile('function', fn.name, fn.sourceFile);
+
+        // Check for error state - use red if at/after error line
+        let color;
+        if (this._isErrorNode(fn)) {
+            color = { r: 0.9, g: 0.1, b: 0.1, a: 1.0 };  // Red for error
+        } else {
+            color = ColorHash.colorWithFile('function', fn.name, fn.sourceFile);
+        }
 
         const mesh = BABYLON.MeshBuilder.CreateCylinder(`building_${fn.key}`, {
             height, diameterTop: width * 0.5, diameterBottom: width, tessellation: 4, subdivisions: 1
@@ -679,11 +811,18 @@ class CityRenderer {
         const invLabel = fn.invocation > 1 ? ` #${fn.invocation}` : '';
         const externalMark = fn.isExternal ? ' 📦' : '';
         const fileLabel = fn.sourceFile && fn.sourceFile !== 'unknown' ? ` [${fn.sourceFile}]` : '';
-        const labelText = `${fn.name}()${invLabel}${externalMark}${fileLabel}`;
+        const errorMark = this._isExactErrorNode(fn) ? ' [!]' : '';
+        const labelText = `${fn.name}()${invLabel}${externalMark}${errorMark}${fileLabel}`;
         const label = this._createFloatingLabel(
             `fnLabel_${fn.key}`, labelText, pos.clone(), height + 0.5, color
         );
         label.isPickable = false;
+
+        // Add exclamation mark indicator for exact error node
+        let errorIndicator = null;
+        if (this._isExactErrorNode(fn)) {
+            errorIndicator = this._createErrorIndicator(fn.key, pos.clone(), height);
+        }
 
         mesh._buildingData = {
             step: fn.enterStep,
@@ -695,7 +834,7 @@ class CityRenderer {
         mesh._trapHeight = height;
         mesh._entityData = fn;
 
-        return { mesh, cap, label, height, color, type: 'function' };
+        return { mesh, cap, label, errorIndicator, height, color, type: 'function' };
     }
 
     _fnChildSteps(fn) {
@@ -746,7 +885,14 @@ class CityRenderer {
         const height = 2;
         const width = 1.4;
         const tangentAngle = this._spiralTangentAngle(slot);
-        const color = ColorHash.colorWithFile('variable', v.name, v.sourceFile);
+
+        // Check for error state - use red if at/after error line
+        let color;
+        if (this._isErrorNode(v)) {
+            color = { r: 0.9, g: 0.1, b: 0.1, a: 1.0 };  // Red for error
+        } else {
+            color = ColorHash.colorWithFile('variable', v.name, v.sourceFile);
+        }
 
         const mesh = BABYLON.MeshBuilder.CreateBox(`building_${v.key}`, {
             height, width, depth: width
@@ -772,9 +918,16 @@ class CityRenderer {
         this._animateScaleIn(mesh);
         this._animateScaleIn(roof);
 
-        const labelText = `${v.name} = ${v.currentValue}`;
+        const errorMark = this._isExactErrorNode(v) ? ' [!]' : '';
+        const labelText = `${v.name} = ${v.currentValue}${errorMark}`;
         const label = this._createFloatingLabel(`varLabel_${v.key}`, labelText, pos.clone(), height + 1.3, color);
         label.isPickable = false;
+
+        // Add error indicator for exact error node
+        let errorIndicator = null;
+        if (this._isExactErrorNode(v)) {
+            errorIndicator = this._createErrorIndicator(v.key, pos.clone(), height);
+        }
 
         mesh._buildingData = {
             step: v.declStep,
@@ -786,7 +939,7 @@ class CityRenderer {
         mesh._trapHeight = height;
         mesh._entityData = v;
 
-        return { mesh, roof, label, height, color, type: 'variable' };
+        return { mesh, roof, label, errorIndicator, height, color, type: 'variable' };
     }
 
     _varChildSteps(v) {
@@ -862,7 +1015,14 @@ class CityRenderer {
         const height = 3;
         const width = 2.6;
         const tangentAngle = this._spiralTangentAngle(slot);
-        const color = ColorHash.colorWithFile(loopType, loop.condition, loop.sourceFile);
+
+        // Check for error state - use red if at/after error line
+        let color;
+        if (this._isErrorNode(loop)) {
+            color = { r: 0.9, g: 0.1, b: 0.1, a: 1.0 };  // Red for error
+        } else {
+            color = ColorHash.colorWithFile(loopType, loop.condition, loop.sourceFile);
+        }
 
         const mesh = BABYLON.MeshBuilder.CreateCylinder(`building_${loop.key}`, {
             height, diameterTop: width * 0.75, diameterBottom: width, tessellation: 6
@@ -889,9 +1049,16 @@ class CityRenderer {
         this._animateScaleIn(chimney);
 
         const typeLabel = loopType.toUpperCase();
-        const labelText = `${typeLabel} (${loop.condition}) ×${loop.iterations}`;
+        const errorMark = this._isExactErrorNode(loop) ? ' [!]' : '';
+        const labelText = `${typeLabel} (${loop.condition}) ×${loop.iterations}${errorMark}`;
         const label = this._createFloatingLabel(`loopLabel_${loop.key}`, labelText, pos.clone(), height + 2, color);
         label.isPickable = false;
+
+        // Add error indicator for exact error node
+        let errorIndicator = null;
+        if (this._isExactErrorNode(loop)) {
+            errorIndicator = this._createErrorIndicator(loop.key, pos.clone(), height);
+        }
 
         mesh._buildingData = {
             step: loop.steps[0] || 0,
@@ -903,7 +1070,7 @@ class CityRenderer {
         mesh._trapHeight = height;
         mesh._entityData = loop;
 
-        return { mesh, chimney, label, height, color, type: loopType };
+        return { mesh, chimney, label, errorIndicator, height, color, type: loopType };
     }
 
     _loopChildSteps(loop) {
@@ -1054,7 +1221,14 @@ class CityRenderer {
         const width = 2.2;
         const tangentAngle = this._spiralTangentAngle(slot);
         const branchType = br.chosenBranch === 'else' ? 'else' : 'branch';
-        const color = ColorHash.colorWithFile(branchType, br.condition, br.sourceFile);
+
+        // Check for error state - use red if at/after error line
+        let color;
+        if (this._isErrorNode(br)) {
+            color = { r: 0.9, g: 0.1, b: 0.1, a: 1.0 };  // Red for error
+        } else {
+            color = ColorHash.colorWithFile(branchType, br.condition, br.sourceFile);
+        }
 
         const mesh = BABYLON.MeshBuilder.CreateCylinder(`building_${br.key}`, {
             height, diameterTop: 0.3, diameterBottom: width, tessellation: 4
@@ -1073,9 +1247,16 @@ class CityRenderer {
 
         this._animateScaleIn(mesh);
 
-        const labelText = `IF (${br.condition}) → ${br.result ? 'true' : 'false'}`;
+        const errorMark = this._isExactErrorNode(br) ? ' [!]' : '';
+        const labelText = `IF (${br.condition}) → ${br.result ? 'true' : 'false'}${errorMark}`;
         const label = this._createFloatingLabel(`brLabel_${br.key}`, labelText, pos.clone(), height + 1, color);
         label.isPickable = false;
+
+        // Add error indicator for exact error node
+        let errorIndicator = null;
+        if (this._isExactErrorNode(br)) {
+            errorIndicator = this._createErrorIndicator(br.key, pos.clone(), height);
+        }
 
         mesh._buildingData = {
             step: br.step,
@@ -1092,7 +1273,7 @@ class CityRenderer {
         mesh._trapHeight = height;
         mesh._entityData = br;
 
-        return { mesh, truePath, falsePath, label, height, color, type: 'branch' };
+        return { mesh, truePath, falsePath, label, errorIndicator, height, color, type: 'branch' };
     }
 
     _createPathIndicator(name, basePos, length, angle, isTrue) {
