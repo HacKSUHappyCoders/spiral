@@ -83,7 +83,6 @@ class CityRenderer {
      * Render a full snapshot from WorldState.
      */
     render(snapshot) {
-        this._ensureGround();
         this._renderFunctions(snapshot.functions, snapshot.callStack);
         this._renderVariables(snapshot.variables, snapshot.functions);
         this._renderLoops(snapshot.loops);
@@ -107,20 +106,6 @@ class CityRenderer {
         this._nextSlot = 0;
         this._slotMap.clear();
         this._maxRenderedSlot = -1;
-    }
-
-    // ─── Ground ────────────────────────────────────────────────────
-
-    _ensureGround() {
-        if (this._ground) return;
-        this._ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 200, height: 200, subdivisions: 2 }, this.scene);
-        const mat = new BABYLON.StandardMaterial('groundMat', this.scene);
-        mat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.14);
-        mat.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.06);
-        mat.specularColor = new BABYLON.Color3(0, 0, 0);
-        mat.alpha = 0.9;
-        this._ground.material = mat;
-        this._ground.position.y = -0.05;
     }
 
     // ─── Spiral timeline tube ──────────────────────────────────────
