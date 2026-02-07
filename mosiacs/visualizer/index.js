@@ -217,46 +217,107 @@ class CodeVisualizer {
     _buildCodePanel(code) {
         this._removeCodePanel();
 
-        const lines = code.split('\n');
         const panel = document.createElement('div');
         panel.id = 'codePanel';
         panel.className = 'code-panel';
 
+        // Header with filename + Save button
         const header = document.createElement('div');
         header.className = 'code-panel-header';
         const meta = this.parser.metadata;
-        header.textContent = meta && meta.file_name ? meta.file_name : 'Source Code';
+        const filename = meta && meta.file_name ? meta.file_name : 'code.c';
+
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = filename;
+        header.appendChild(titleSpan);
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'code-save-btn';
+        saveBtn.textContent = 'Save & Run';
+        saveBtn.addEventListener('click', () => this._saveCodePanel());
+        header.appendChild(saveBtn);
+
         panel.appendChild(header);
 
-        const content = document.createElement('div');
-        content.className = 'code-panel-content';
-        content.id = 'codePanelContent';
+        // Editor area: gutter + textarea
+        const wrap = document.createElement('div');
+        wrap.className = 'code-editor-wrap';
 
-        lines.forEach((line, i) => {
-            const num = i + 1;
-            const row = document.createElement('div');
-            row.className = 'code-line';
-            row.id = 'codeLine' + num;
+        const gutter = document.createElement('div');
+        gutter.className = 'code-gutter';
+        gutter.id = 'codeGutter';
 
-            const numSpan = document.createElement('span');
-            numSpan.className = 'code-line-num';
-            numSpan.textContent = num;
+        const textarea = document.createElement('textarea');
+        textarea.className = 'code-textarea';
+        textarea.id = 'codeTextarea';
+        textarea.spellcheck = false;
+        textarea.value = code;
 
-            const textSpan = document.createElement('span');
-            textSpan.className = 'code-line-text';
-            textSpan.textContent = line;
+        // Sync gutter line numbers
+        const updateGutter = () => {
+            const lines = textarea.value.split('\n');
+            gutter.innerHTML = lines.map((_, i) =>
+                `<div class="code-gutter-line" id="gutterLine${i+1}">${i+1}</div>`
+            ).join('');
+        };
+        textarea.addEventListener('input', updateGutter);
+        updateGutter();
 
-            row.appendChild(numSpan);
-            row.appendChild(textSpan);
-            content.appendChild(row);
+        // Stop keyboard/mouse events from reaching Babylon.js 3D controls
+        textarea.addEventListener('keydown', (e) => e.stopPropagation());
+        textarea.addEventListener('keyup', (e) => e.stopPropagation());
+        textarea.addEventListener('mousedown', (e) => e.stopPropagation());
+        textarea.addEventListener('mousemove', (e) => e.stopPropagation());
+        textarea.addEventListener('wheel', (e) => e.stopPropagation());
+
+        // Sync scroll between gutter and textarea
+        textarea.addEventListener('scroll', () => {
+            gutter.scrollTop = textarea.scrollTop;
         });
 
-        panel.appendChild(content);
+        wrap.appendChild(gutter);
+        wrap.appendChild(textarea);
+        panel.appendChild(wrap);
+
         document.body.appendChild(panel);
         makeDraggable(panel, header);
 
         // Animate in
         requestAnimationFrame(() => panel.classList.add('open'));
+    }
+
+    _saveCodePanel() {
+        const textarea = document.getElementById('codeTextarea');
+        if (!textarea) return;
+
+        const code = textarea.value;
+        const meta = this.parser.metadata;
+        const filename = meta && meta.file_name ? meta.file_name : 'code.c';
+
+        // Create a File object from the edited text
+        const blob = new Blob([code], { type: 'text/plain' });
+        const file = new File([blob], filename);
+
+        // Update stored source code
+        this.setSourceCode(code);
+
+        // Upload and re-visualize
+        const saveBtn = document.querySelector('.code-save-btn');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Processing...'; }
+
+        CodeParser.upload(file)
+            .then(json => {
+                if (json.success === false) {
+                    const err = json.error || {};
+                    alert(`Error (${err.stage || 'unknown'}): ${err.message || 'Unknown error'}`);
+                    return;
+                }
+                this.visualize(json);
+            })
+            .catch(err => alert('Save failed: ' + err.message))
+            .finally(() => {
+                if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save & Run'; }
+            });
     }
 
     _removeCodePanel() {
@@ -268,29 +329,22 @@ class CodeVisualizer {
     }
 
     highlightLine(lineNumber) {
-        // Remove old highlight
-        const old = document.querySelector('.code-line.highlighted');
+        // Remove old gutter highlight
+        const old = document.querySelector('.code-gutter-line.highlighted');
         if (old) old.classList.remove('highlighted');
 
         if (!lineNumber) return;
 
-        const lineEl = document.getElementById('codeLine' + lineNumber);
-        if (!lineEl) return;
+        // Highlight gutter line number
+        const gutterLine = document.getElementById('gutterLine' + lineNumber);
+        if (gutterLine) gutterLine.classList.add('highlighted');
 
-        lineEl.classList.add('highlighted');
-
-        // Scroll to center the line in the panel
-        const content = document.getElementById('codePanelContent');
-        if (!content) return;
-
-        const lineTop = lineEl.offsetTop - content.offsetTop;
-        const lineHeight = lineEl.offsetHeight;
-        const contentHeight = content.clientHeight;
-
-        content.scrollTo({
-            top: lineTop - (contentHeight / 2) + (lineHeight / 2),
-            behavior: 'smooth'
-        });
+        // Scroll textarea to center the line
+        const textarea = document.getElementById('codeTextarea');
+        if (!textarea) return;
+        const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20;
+        const visibleLines = textarea.clientHeight / lineHeight;
+        textarea.scrollTop = (lineNumber - visibleLines / 2) * lineHeight;
     }
 
 }
