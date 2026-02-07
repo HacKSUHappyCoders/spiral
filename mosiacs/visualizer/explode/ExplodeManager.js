@@ -13,8 +13,16 @@ class ExplodeManager {
         /** Reference to CityRenderer for on-demand sub-spiral rendering */
         this.cityRenderer = cityRenderer || null;
 
+        /** GalaxyWarpManager — set by CodeVisualizer after construction */
+        this.galaxyWarpManager = null;
+
         /** Currently inspected building (null when nothing is open) */
         this.exploded = null;
+
+        /** Double-click detection via delayed single-click pattern */
+        this._pendingClickTimer = null;
+        this._pendingClickMesh = null;
+        this._dblClickThreshold = 300; // ms
 
         this._setupPointerObservable();
     }
@@ -39,23 +47,73 @@ class ExplodeManager {
 
             // ── Check if a sub-spiral dot was clicked ──
             if (pick.pickedMesh._subSpiralDot) {
+                this._cancelPendingClick();
                 this._showDotInspector(pick.pickedMesh);
+                return;
+            }
+
+            // ── Check if a galaxy building was clicked ──
+            if (pick.pickedMesh._isGalaxyBuilding) {
+                this._cancelPendingClick();
+                this._showGalaxyBuildingInspector(pick.pickedMesh);
                 return;
             }
 
             const buildingMesh = this._findBuildingMesh(pick.pickedMesh);
             if (!buildingMesh) return;
 
-            // Already inspecting this building → close
-            if (this.exploded && this.exploded.mesh === buildingMesh) {
-                this._collapse();
+            // ── Delayed single-click / double-click detection ──
+            // If we already have a pending click on the SAME mesh, this is
+            // the second click → treat as double-click immediately.
+            if (this._pendingClickMesh === buildingMesh && this._pendingClickTimer) {
+                this._cancelPendingClick();
+
+                // Collapse any open inspector first
+                if (this.exploded) this._collapse();
+
+                // Warp to galaxy if this building has child steps
+                if (this.galaxyWarpManager && this.galaxyWarpManager.canWarp(buildingMesh)) {
+                    this.galaxyWarpManager.warpTo(buildingMesh);
+                    return;
+                }
+                // If it can't warp, fall through to single-click behaviour
+                this._handleSingleClick(buildingMesh);
                 return;
             }
 
-            // Different building → close old, open new
-            if (this.exploded) this._collapse();
-            this._explode(buildingMesh);
+            // Cancel any pending click on a different mesh
+            this._cancelPendingClick();
+
+            // Schedule a delayed single-click. If the user clicks again
+            // before the timeout, the double-click branch above fires instead.
+            this._pendingClickMesh = buildingMesh;
+            this._pendingClickTimer = setTimeout(() => {
+                this._pendingClickTimer = null;
+                this._pendingClickMesh = null;
+                this._handleSingleClick(buildingMesh);
+            }, this._dblClickThreshold);
         });
+    }
+
+    /** Cancel any pending delayed single-click. */
+    _cancelPendingClick() {
+        if (this._pendingClickTimer) {
+            clearTimeout(this._pendingClickTimer);
+            this._pendingClickTimer = null;
+        }
+        this._pendingClickMesh = null;
+    }
+
+    /** Execute a single-click action on a building (open/close inspector). */
+    _handleSingleClick(buildingMesh) {
+        // Already inspecting this building → close
+        if (this.exploded && this.exploded.mesh === buildingMesh) {
+            this._collapse();
+            return;
+        }
+        // Different building → close old, open new
+        if (this.exploded) this._collapse();
+        this._explode(buildingMesh);
     }
 
     _findBuildingMesh(mesh) {
@@ -261,6 +319,177 @@ class ExplodeManager {
 
     _row(label, value) {
         return `<div class="inspector-row"><span class="inspector-label">${label}</span><span class="inspector-val">${value}</span></div>`;
+    }
+
+    // ─── galaxy building inspector ────────────────────────────────
+
+    /**
+     * Show an inspector panel for a clicked galaxy building.
+     * Reuses the dot inspector panel slot (secondary overlay).
+     */
+    _showGalaxyBuildingInspector(mesh) {
+        this._closeDotInspector();
+
+        const entity = mesh._entityData;
+        if (!entity) return;
+
+        // Reuse the consolidated-entity display from the dot inspector
+        this._currentDotEntity = entity;
+
+        const panel = document.createElement('div');
+        panel.id = 'dotInspectorPanel';
+        panel.className = 'inspector-panel dot-inspector';
+
+        let html = `<button class="inspector-close">✕</button>`;
+        html += this._buildGalaxyBuildingInspectorHTML(entity);
+        panel.innerHTML = html;
+
+        document.body.appendChild(panel);
+        requestAnimationFrame(() => panel.classList.add('open'));
+
+        panel.querySelector('.inspector-close').addEventListener('click', () => {
+            this._closeDotInspector();
+        });
+
+        this._dotPanel = panel;
+
+        // Brief highlight pulse
+        if (!mesh.isDisposed()) {
+            const origScale = mesh.scaling.clone();
+            mesh.scaling = new BABYLON.Vector3(1.15, 1.15, 1.15);
+            setTimeout(() => {
+                if (mesh && !mesh.isDisposed()) mesh.scaling.copyFrom(origScale);
+            }, 250);
+        }
+    }
+
+    _buildGalaxyBuildingInspectorHTML(entity) {
+        let h = '';
+
+        // ── Variable entity ──
+        if (entity.type === 'variable') {
+            h += `<div class="inspector-header var-header">
+                <span class="inspector-icon">🏠</span>
+                <span>${entity.subject || entity.label}</span>
+            </div>`;
+            h += `<div class="inspector-section">`;
+            h += this._row('Type', 'Variable');
+            h += this._row('Current value', `<strong>${entity.currentValue}</strong>`);
+            if (entity.address) h += this._row('Address', entity.address);
+            h += this._row('Assignments', entity.values ? entity.values.length : '—');
+            h += `</div>`;
+
+            if (entity.values && entity.values.length > 0) {
+                h += `<div class="inspector-subtitle">Value History</div>`;
+                h += `<div class="inspector-section inspector-history">`;
+                entity.values.forEach((entry, i) => {
+                    const isCurrent = (i === entity.values.length - 1);
+                    h += `<div class="history-row ${isCurrent ? 'current' : ''}">
+                        <span class="history-step">step ${entry.step}</span>
+                        <span class="history-arrow">→</span>
+                        <span class="history-value">${entry.value}</span>
+                    </div>`;
+                });
+                h += `</div>`;
+            }
+            return h;
+        }
+
+        // ── Loop entity ──
+        if (entity.type === 'loop') {
+            h += `<div class="inspector-header loop-header">
+                <span class="inspector-icon">🏭</span>
+                <span>${entity.label || 'Loop'}</span>
+            </div>`;
+            h += `<div class="inspector-section">`;
+            h += this._row('Type', `${(entity.subtype || 'loop').toUpperCase()} Loop`);
+            h += this._row('Condition', `<code>${entity.condition || '—'}</code>`);
+            h += this._row('Iterations', entity.iterations || '—');
+            h += this._row('Running', entity.running ? '🔄 yes' : '⏹ no');
+            h += `</div>`;
+
+            if (entity.stepIndices && entity.stepIndices.length > 0) {
+                h += `<div class="inspector-subtitle">Iteration Steps</div>`;
+                h += `<div class="inspector-section inspector-history">`;
+                entity.stepIndices.forEach((s, i) => {
+                    const isLast = (i === entity.stepIndices.length - 1);
+                    h += `<div class="history-row ${isLast ? 'current' : ''}">
+                        <span class="history-step">step ${s}</span>
+                        <span class="history-arrow">→</span>
+                        <span class="history-value">iteration ${i + 1}</span>
+                    </div>`;
+                });
+                h += `</div>`;
+            }
+            return h;
+        }
+
+        // ── Call / Return entity ──
+        if (entity.type === 'call' || entity.type === 'return') {
+            const icon = entity.type === 'call' ? '🏛️' : '↩️';
+            h += `<div class="inspector-header fn-header">
+                <span class="inspector-icon">${icon}</span>
+                <span>${entity.label || entity.type.toUpperCase()}</span>
+            </div>`;
+            h += `<div class="inspector-section">`;
+            h += this._row('Type', entity.type === 'call' ? 'Function Call' : 'Return');
+            if (entity.firstStep) {
+                const step = entity.firstStep;
+                if (step.name)    h += this._row('Name', step.name);
+                if (step.subject) h += this._row('Subject', step.subject);
+                if (step.value !== undefined && step.value !== null)
+                    h += this._row('Value', `<strong>${step.value}</strong>`);
+                if (step.stack_depth !== undefined)
+                    h += this._row('Stack Depth', step.stack_depth);
+                if (step.line_number)
+                    h += this._row('Line', step.line_number);
+            }
+            h += `</div>`;
+            return h;
+        }
+
+        // ── Condition / Branch entity ──
+        if (entity.type === 'condition' || entity.type === 'branch') {
+            h += `<div class="inspector-header cond-header">
+                <span class="inspector-icon">🔀</span>
+                <span>${entity.label || 'Condition'}</span>
+            </div>`;
+            h += `<div class="inspector-section">`;
+            h += this._row('Type', 'Branch / Condition');
+            if (entity.firstStep) {
+                const step = entity.firstStep;
+                if (step.condition) h += this._row('Condition', `<code>${step.condition}</code>`);
+                if (step.condition_result !== undefined)
+                    h += this._row('Result', step.condition_result
+                        ? '<span class="val-true">TRUE</span>'
+                        : '<span class="val-false">FALSE</span>');
+                if (step.subtype)
+                    h += this._row('Branch', step.subtype);
+            }
+            h += `</div>`;
+            return h;
+        }
+
+        // ── Generic fallback ──
+        const icon = this._iconForType((entity.colorType || entity.type || '').toUpperCase());
+        h += `<div class="inspector-header dot-header">
+            <span class="inspector-icon">${icon}</span>
+            <span>${entity.label || entity.type || 'Entity'}</span>
+        </div>`;
+        h += `<div class="inspector-section">`;
+        h += this._row('Type', entity.type || '—');
+        if (entity.firstStep) {
+            const step = entity.firstStep;
+            if (step.subject)     h += this._row('Subject', step.subject);
+            if (step.name)        h += this._row('Name', step.name);
+            if (step.value !== undefined && step.value !== null)
+                h += this._row('Value', `<strong>${step.value}</strong>`);
+            if (step.line_number) h += this._row('Line', step.line_number);
+        }
+        if (entity.stepIndices)
+            h += this._row('Steps', entity.stepIndices.length);
+        h += `</div>`;
+        return h;
     }
 
     // ─── sub-spiral dot inspector ───────────────────────────────────

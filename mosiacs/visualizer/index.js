@@ -44,6 +44,13 @@ class CodeVisualizer {
         // Explode manager for click-to-inspect (pass cityRenderer for sub-spirals)
         this.explodeManager = new ExplodeManager(scene, this.cityRenderer);
 
+        // Galaxy warp manager — double-click to warp into sub-spiral galaxies
+        this.galaxyWarpManager = new GalaxyWarpManager(scene, this.sceneManager, this.cityRenderer);
+        this.explodeManager.galaxyWarpManager = this.galaxyWarpManager;
+
+        // Causality web renderer (Phase 3 Part 3)
+        this.causalityRenderer = new CausalityRenderer(scene, this.cityRenderer);
+
         return this;
     }
 
@@ -53,6 +60,16 @@ class CodeVisualizer {
     visualize(codeTrace) {
         // Clear previous city
         this.cityRenderer.clear();
+
+        // Clear any active galaxy warp
+        if (this.galaxyWarpManager) {
+            this.galaxyWarpManager.clear();
+        }
+
+        // Clear causality web
+        if (this.causalityRenderer) {
+            this.causalityRenderer.clear();
+        }
 
         // Parse the trace
         const trace = this.parser.parse(codeTrace);
@@ -93,12 +110,36 @@ class CodeVisualizer {
         return this.explodeManager.collapseIfExploded();
     }
 
+    // ─── Galaxy Warp ───────────────────────────────────────────────
+
+    returnFromGalaxy() {
+        if (this.galaxyWarpManager && this.galaxyWarpManager.isWarped()) {
+            this.galaxyWarpManager.returnToMainGalaxy(true);
+            return true;
+        }
+        return false;
+    }
+
+    isInGalaxy() {
+        return this.galaxyWarpManager && this.galaxyWarpManager.isWarped();
+    }
+
     // ─── Animation toggle ──────────────────────────────────────────
 
     toggleAnimation() {
         const scene = this.sceneManager.getScene();
         scene.animationsEnabled = !scene.animationsEnabled;
         return scene.animationsEnabled;
+    }
+
+    // ─── Causality web (Phase 3 Part 3) ────────────────────────────
+
+    toggleCausality() {
+        return this.causalityRenderer.toggle();
+    }
+
+    isCausalityVisible() {
+        return this.causalityRenderer.isVisible();
     }
 
     // ─── UI helpers ────────────────────────────────────────────────

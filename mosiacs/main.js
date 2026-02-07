@@ -39,11 +39,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Return from galaxy warp button
+    document.getElementById('returnToMainGalaxy').addEventListener('click', () => {
+        const returned = visualizer.returnFromGalaxy();
+        if (!returned) {
+            console.log('Not currently in a galaxy.');
+        }
+    });
+
     // Toggle animation button
     const toggleBtn = document.getElementById('toggleAnimation');
     toggleBtn.addEventListener('click', () => {
         const isAnimating = visualizer.toggleAnimation();
         toggleBtn.textContent = isAnimating ? 'Pause Animation' : 'Resume Animation';
+    });
+
+    // Toggle causality web button (Phase 3 Part 3)
+    const causalityBtn = document.getElementById('toggleCausality');
+    causalityBtn.addEventListener('click', () => {
+        const isShowing = visualizer.toggleCausality();
+        causalityBtn.textContent = isShowing ? '🕸️ Hide Causality Web' : '🕸️ Show Causality Web';
     });
 
     // Show welcome message
