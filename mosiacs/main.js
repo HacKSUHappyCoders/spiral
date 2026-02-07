@@ -34,11 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.className = 'code-file-item';
                     
                     const checkbox = document.createElement('input');
-                    checkbox.type = 'radio';
-                    checkbox.name = 'codeFile';
+                    checkbox.type = 'checkbox';
                     checkbox.value = f;
                     checkbox.id = `file-${f}`;
-                    checkbox.dataset.filename = f;
                     
                     const label = document.createElement('label');
                     label.className = 'file-name';
@@ -104,30 +102,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    // Helper function to update the Spiral title with current filename
-    function updateSpiralTitle(filename) {
-        const titleElement = document.querySelector('#controls-handle h2');
-        if (titleElement && filename) {
-            titleElement.textContent = `Spiral - ${filename}`;
-        }
-    }
-
     // Initialize code files list
     populateCodeFiles();
 
     // Load selected code files button — processes selected code files
     document.getElementById('loadSelected').addEventListener('click', async () => {
-        const checkboxes = document.querySelectorAll('#codeFileList input[type="radio"]:checked');
+        const checkboxes = document.querySelectorAll('#codeFileList input[type="checkbox"]:checked');
         const selectedFiles = Array.from(checkboxes).map(cb => cb.value);
 
         if (selectedFiles.length === 0) {
-            alert('Please select a code file');
+            alert('Please select one or more code files');
             return;
         }
-
-        // Update title with filename
-        const selectedFilename = selectedFiles[0];
-        updateSpiralTitle(selectedFilename);
 
         const loadBtn = document.getElementById('loadSelected');
         loadBtn.disabled = true;
@@ -260,15 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.className = 'code-file-item';
                 
                 const checkbox = document.createElement('input');
-                checkbox.type = 'radio';
-                checkbox.name = 'codeFile';
+                checkbox.type = 'checkbox';
                 checkbox.value = file.name;
                 checkbox.id = `file-${file.name}`;
                 checkbox.checked = true;
-                checkbox.dataset.filename = file.name;
-                
-                // Update title with filename
-                updateSpiralTitle(file.name);
                 
                 const label = document.createElement('label');
                 label.className = 'file-name';

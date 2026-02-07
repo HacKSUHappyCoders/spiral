@@ -331,7 +331,33 @@ class CInstrumenter:
         return "    " + "; ".join(statements) + ";"
 
     def _build_output(self):
-        result = ["int __stack_depth = 0;"]
+        # Check if stdio.h is already included
+        has_stdio = False
+        first_non_include_line = 0
+        
+        for i, line in enumerate(self.lines):
+            stripped = line.strip()
+            if stripped.startswith("#include"):
+                if "stdio.h" in stripped:
+                    has_stdio = True
+                first_non_include_line = i + 1
+            elif stripped and not stripped.startswith("//") and not stripped.startswith("/*"):
+                # Found first non-include, non-comment line
+                if not has_stdio:
+                    # Stop looking after we pass the include section
+                    break
+        
+        result = []
+        
+        # Add stdio.h if not present
+        if not has_stdio:
+            result.append("#include <stdio.h>")
+            result.append("")
+        
+        # Add global stack depth variable
+        result.append("int __stack_depth = 0;")
+        
+        # Add the rest of the code
         for i, line in enumerate(self.lines):
             if i in self.pre_insertions:
                 result.extend(self.pre_insertions[i])

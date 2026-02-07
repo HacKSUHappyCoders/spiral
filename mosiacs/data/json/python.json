@@ -1,0 +1,1902 @@
+{
+  "success": true,
+  "metadata": {
+    "file_name": "python.py",
+    "file_path": "/srv/mosiacs/data/python.py",
+    "file_size": "4703",
+    "file_mode": "-rwxrwxrwx",
+    "modified": "2026-02-07 20:19:13",
+    "accessed": "2026-02-07 20:51:36",
+    "created": "2026-02-07 20:38:17",
+    "language": "Python",
+    "total_lines": "151",
+    "non_blank_lines": "115",
+    "num_imports": "7",
+    "num_comments": "56",
+    "num_functions": "8",
+    "function_names": "add,multiply,calculate_average,print_array,create_message,process_data,analyze_text,main",
+    "num_variables": "39",
+    "num_assignments": "39",
+    "num_calls": "63",
+    "num_returns": "6",
+    "num_loops": "2",
+    "num_branches": "1",
+    "max_nesting_depth": "2",
+    "imports": "os,sys,math,random,json,datetime,collections",
+    "defined_functions": "add,analyze_text,calculate_average,create_message,main,multiply,print_array,process_data"
+  },
+  "traces": [
+    {
+      "type": "CONDITION",
+      "subject": "__name__ == \"__main__\"",
+      "condition_result": "True",
+      "line_number": "149",
+      "stack_depth": "0",
+      "id": 0
+    },
+    {
+      "type": "BRANCH",
+      "subtype": "if",
+      "condition": "__name__ == \"__main__\"",
+      "line_number": "150",
+      "stack_depth": "0",
+      "id": 1
+    },
+    {
+      "type": "CALL",
+      "subject": "main",
+      "stack_depth": "1",
+      "id": 2
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "=== Testing Internal and External Function Calls ==="
+      ],
+      "id": 3
+    },
+    {
+      "type": "READ",
+      "subject": "datetime",
+      "format_spec": "<class 'datetime.datetime'>",
+      "address": "7fe0c11b4d00",
+      "line_number": "49",
+      "stack_depth": "1",
+      "id": 4
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "now",
+      "line_number": "49",
+      "stack_depth": "1",
+      "id": 5
+    },
+    {
+      "type": "DECL",
+      "subject": "current_time",
+      "value": "2026-02-07 20:55:50.500617",
+      "address": "7fe0c13bc2d0",
+      "line_number": "49",
+      "stack_depth": "1",
+      "id": 6
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Current time: 2026-02-07 20:55:50.500617"
+      ],
+      "id": 7
+    },
+    {
+      "type": "CALL",
+      "subject": "add",
+      "stack_depth": "2",
+      "args": [
+        "5",
+        "3"
+      ],
+      "id": 8
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "a + b",
+      "line_number": "11",
+      "stack_depth": "2",
+      "id": 9
+    },
+    {
+      "type": "DECL",
+      "subject": "sum_result",
+      "value": "8",
+      "address": "7fe0c1d24ff0",
+      "line_number": "53",
+      "stack_depth": "1",
+      "id": 10
+    },
+    {
+      "type": "CALL",
+      "subject": "multiply",
+      "stack_depth": "2",
+      "args": [
+        "4",
+        "7"
+      ],
+      "id": 11
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "4",
+      "address": "7fe0c1d24f70",
+      "line_number": "14",
+      "stack_depth": "2",
+      "id": 12
+    },
+    {
+      "type": "READ",
+      "subject": "y",
+      "format_spec": "7",
+      "address": "7fe0c1d24fd0",
+      "line_number": "14",
+      "stack_depth": "2",
+      "id": 13
+    },
+    {
+      "type": "DECL",
+      "subject": "result",
+      "value": "28",
+      "address": "7fe0c1d25270",
+      "line_number": "14",
+      "stack_depth": "2",
+      "id": 14
+    },
+    {
+      "type": "RETURN",
+      "subtype": "result",
+      "value": "28",
+      "line_number": "15",
+      "stack_depth": "2",
+      "address": "7fe0c1d25270",
+      "id": 15
+    },
+    {
+      "type": "DECL",
+      "subject": "product_result",
+      "value": "28",
+      "address": "7fe0c1d25270",
+      "line_number": "54",
+      "stack_depth": "1",
+      "id": 16
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Sum: 8"
+      ],
+      "id": 17
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Product: 28"
+      ],
+      "id": 18
+    },
+    {
+      "type": "DECL",
+      "subject": "numbers",
+      "value": "[10, 20, 30, 40, 50]",
+      "address": "7fe0c1518e00",
+      "line_number": "60",
+      "stack_depth": "1",
+      "id": 19
+    },
+    {
+      "type": "CALL",
+      "subject": "print_array",
+      "stack_depth": "2",
+      "args": [
+        "[10, 20, 30, 40, 50]"
+      ],
+      "id": 20
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Array contents: [10, 20, 30, 40, 50]"
+      ],
+      "id": 21
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "24",
+      "stack_depth": "2",
+      "condition": "arr",
+      "condition_result": "1",
+      "id": 22
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "10",
+      "address": "7fe0c1d25030",
+      "line_number": "24",
+      "stack_depth": "2",
+      "id": 23
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "  - 10"
+      ],
+      "id": 24
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "24",
+      "stack_depth": "2",
+      "condition": "arr",
+      "condition_result": "1",
+      "id": 25
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "20",
+      "address": "7fe0c1d25170",
+      "line_number": "24",
+      "stack_depth": "2",
+      "id": 26
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "  - 20"
+      ],
+      "id": 27
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "24",
+      "stack_depth": "2",
+      "condition": "arr",
+      "condition_result": "1",
+      "id": 28
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "30",
+      "address": "7fe0c1d252b0",
+      "line_number": "24",
+      "stack_depth": "2",
+      "id": 29
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "  - 30"
+      ],
+      "id": 30
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "24",
+      "stack_depth": "2",
+      "condition": "arr",
+      "condition_result": "1",
+      "id": 31
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "40",
+      "address": "7fe0c1d253f0",
+      "line_number": "24",
+      "stack_depth": "2",
+      "id": 32
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "  - 40"
+      ],
+      "id": 33
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "24",
+      "stack_depth": "2",
+      "condition": "arr",
+      "condition_result": "1",
+      "id": 34
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "50",
+      "address": "7fe0c1d25530",
+      "line_number": "24",
+      "stack_depth": "2",
+      "id": 35
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "  - 50"
+      ],
+      "id": 36
+    },
+    {
+      "type": "READ",
+      "subject": "numbers",
+      "format_spec": "[10, 20, 30, 40, 50]",
+      "address": "7fe0c1518e00",
+      "line_number": "66",
+      "stack_depth": "2",
+      "id": 37
+    },
+    {
+      "type": "CALL",
+      "subject": "calculate_average",
+      "stack_depth": "3",
+      "args": [
+        "[10, 20, 30, 40, 50]"
+      ],
+      "id": 38
+    },
+    {
+      "type": "READ",
+      "subject": "numbers",
+      "format_spec": "[10, 20, 30, 40, 50]",
+      "address": "7fe0c1518e00",
+      "line_number": "18",
+      "stack_depth": "3",
+      "id": 39
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "sum",
+      "line_number": "18",
+      "stack_depth": "3",
+      "id": 40
+    },
+    {
+      "type": "DECL",
+      "subject": "total",
+      "value": "150",
+      "address": "7fe0c1d261b0",
+      "line_number": "18",
+      "stack_depth": "3",
+      "id": 41
+    },
+    {
+      "type": "READ",
+      "subject": "numbers",
+      "format_spec": "[10, 20, 30, 40, 50]",
+      "address": "7fe0c1518e00",
+      "line_number": "19",
+      "stack_depth": "3",
+      "id": 42
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "len",
+      "line_number": "19",
+      "stack_depth": "3",
+      "id": 43
+    },
+    {
+      "type": "DECL",
+      "subject": "count",
+      "value": "5",
+      "address": "7fe0c1d24f90",
+      "line_number": "19",
+      "stack_depth": "3",
+      "id": 44
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "total / count if count > 0 else 0",
+      "line_number": "20",
+      "stack_depth": "3",
+      "id": 45
+    },
+    {
+      "type": "DECL",
+      "subject": "avg",
+      "value": "30.0",
+      "address": "7fe0c133d4d0",
+      "line_number": "66",
+      "stack_depth": "2",
+      "id": 46
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Average: 30.0"
+      ],
+      "id": 47
+    },
+    {
+      "type": "DECL",
+      "subject": "str1",
+      "value": "Hello",
+      "address": "7fe0c13a9d70",
+      "line_number": "70",
+      "stack_depth": "2",
+      "id": 48
+    },
+    {
+      "type": "DECL",
+      "subject": "str2",
+      "value": "World",
+      "address": "7fe0c13aa100",
+      "line_number": "71",
+      "stack_depth": "2",
+      "id": 49
+    },
+    {
+      "type": "READ",
+      "subject": "str1",
+      "format_spec": "Hello",
+      "address": "7fe0c13a9d70",
+      "line_number": "74",
+      "stack_depth": "2",
+      "id": 50
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "len",
+      "line_number": "74",
+      "stack_depth": "2",
+      "id": 51
+    },
+    {
+      "type": "DECL",
+      "subject": "len1",
+      "value": "5",
+      "address": "7fe0c1d24f90",
+      "line_number": "74",
+      "stack_depth": "2",
+      "id": 52
+    },
+    {
+      "type": "READ",
+      "subject": "str2",
+      "format_spec": "World",
+      "address": "7fe0c13aa100",
+      "line_number": "75",
+      "stack_depth": "2",
+      "id": 53
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "len",
+      "line_number": "75",
+      "stack_depth": "2",
+      "id": 54
+    },
+    {
+      "type": "DECL",
+      "subject": "len2",
+      "value": "5",
+      "address": "7fe0c1d24f90",
+      "line_number": "75",
+      "stack_depth": "2",
+      "id": 55
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Length of 'Hello': 5"
+      ],
+      "id": 56
+    },
+    {
+      "type": "READ",
+      "subject": "str1",
+      "format_spec": "Hello",
+      "address": "7fe0c13a9d70",
+      "line_number": "78",
+      "stack_depth": "2",
+      "id": 57
+    },
+    {
+      "type": "READ",
+      "subject": "str2",
+      "format_spec": "World",
+      "address": "7fe0c13aa100",
+      "line_number": "78",
+      "stack_depth": "2",
+      "id": 58
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "join",
+      "line_number": "78",
+      "stack_depth": "2",
+      "id": 59
+    },
+    {
+      "type": "DECL",
+      "subject": "combined",
+      "value": "Hello World",
+      "address": "7fe0c1247bb0",
+      "line_number": "78",
+      "stack_depth": "2",
+      "id": 60
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Combined: Hello World"
+      ],
+      "id": 61
+    },
+    {
+      "type": "DECL",
+      "subject": "x",
+      "value": "16.0",
+      "address": "7fe0c145f7d0",
+      "line_number": "82",
+      "stack_depth": "2",
+      "id": 62
+    },
+    {
+      "type": "READ",
+      "subject": "math",
+      "format_spec": "<module 'math' from '/usr/local/lib/python3.13/lib-dynload/math.cpython-313-x86_64-linux-gnu.so'>",
+      "address": "7fe0c13c4220",
+      "line_number": "83",
+      "stack_depth": "2",
+      "id": 63
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "16.0",
+      "address": "7fe0c145f7d0",
+      "line_number": "83",
+      "stack_depth": "2",
+      "id": 64
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "sqrt",
+      "line_number": "83",
+      "stack_depth": "2",
+      "id": 65
+    },
+    {
+      "type": "DECL",
+      "subject": "square_root",
+      "value": "4.0",
+      "address": "7fe0c133cad0",
+      "line_number": "83",
+      "stack_depth": "2",
+      "id": 66
+    },
+    {
+      "type": "READ",
+      "subject": "math",
+      "format_spec": "<module 'math' from '/usr/local/lib/python3.13/lib-dynload/math.cpython-313-x86_64-linux-gnu.so'>",
+      "address": "7fe0c13c4220",
+      "line_number": "84",
+      "stack_depth": "2",
+      "id": 67
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "pow",
+      "line_number": "84",
+      "stack_depth": "2",
+      "id": 68
+    },
+    {
+      "type": "DECL",
+      "subject": "power",
+      "value": "8.0",
+      "address": "7fe0c133f050",
+      "line_number": "84",
+      "stack_depth": "2",
+      "id": 69
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Square root of 16.0: 4.0"
+      ],
+      "id": 70
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "2^3: 8.0"
+      ],
+      "id": 71
+    },
+    {
+      "type": "CALL",
+      "subject": "create_message",
+      "stack_depth": "3",
+      "args": [
+        "Developer"
+      ],
+      "id": 72
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "f\"Hello, {name}!\"",
+      "line_number": "29",
+      "stack_depth": "3",
+      "id": 73
+    },
+    {
+      "type": "DECL",
+      "subject": "greeting",
+      "value": "Hello, Developer!",
+      "address": "7fe0c1247eb0",
+      "line_number": "90",
+      "stack_depth": "2",
+      "id": 74
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Hello, Developer!"
+      ],
+      "id": 75
+    },
+    {
+      "type": "READ",
+      "subject": "random",
+      "format_spec": "<module 'random' from '/usr/local/lib/python3.13/random.py'>",
+      "address": "7fe0c13c5800",
+      "line_number": "94",
+      "stack_depth": "2",
+      "id": 76
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "randint",
+      "line_number": "94",
+      "stack_depth": "2",
+      "id": 77
+    },
+    {
+      "type": "DECL",
+      "subject": "random_num",
+      "value": "21",
+      "address": "7fe0c1d25190",
+      "line_number": "94",
+      "stack_depth": "2",
+      "id": 78
+    },
+    {
+      "type": "READ",
+      "subject": "random",
+      "format_spec": "<module 'random' from '/usr/local/lib/python3.13/random.py'>",
+      "address": "7fe0c13c5800",
+      "line_number": "95",
+      "stack_depth": "2",
+      "id": 79
+    },
+    {
+      "type": "READ",
+      "subject": "numbers",
+      "format_spec": "[10, 20, 30, 40, 50]",
+      "address": "7fe0c1518e00",
+      "line_number": "95",
+      "stack_depth": "2",
+      "id": 80
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "choice",
+      "line_number": "95",
+      "stack_depth": "2",
+      "id": 81
+    },
+    {
+      "type": "DECL",
+      "subject": "random_choice",
+      "value": "40",
+      "address": "7fe0c1d253f0",
+      "line_number": "95",
+      "stack_depth": "2",
+      "id": 82
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Random number: 21"
+      ],
+      "id": 83
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Random choice: 40"
+      ],
+      "id": 84
+    },
+    {
+      "type": "READ",
+      "subject": "os",
+      "format_spec": "<module 'os' (frozen)>",
+      "address": "7fe0c1302c50",
+      "line_number": "100",
+      "stack_depth": "2",
+      "id": 85
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "getcwd",
+      "line_number": "100",
+      "stack_depth": "2",
+      "id": 86
+    },
+    {
+      "type": "DECL",
+      "subject": "current_dir",
+      "value": "/srv",
+      "address": "7fe0c12498c0",
+      "line_number": "100",
+      "stack_depth": "2",
+      "id": 87
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Current directory: /srv"
+      ],
+      "id": 88
+    },
+    {
+      "type": "READ",
+      "subject": "os",
+      "format_spec": "<module 'os' (frozen)>",
+      "address": "7fe0c1302c50",
+      "line_number": "104",
+      "stack_depth": "2",
+      "id": 89
+    },
+    {
+      "type": "READ",
+      "subject": "__file__",
+      "format_spec": "/srv/mosiacs/data/output/instrumented_python_py.py",
+      "address": "7fe0c1349d10",
+      "line_number": "104",
+      "stack_depth": "2",
+      "id": 90
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "exists",
+      "line_number": "104",
+      "stack_depth": "2",
+      "id": 91
+    },
+    {
+      "type": "DECL",
+      "subject": "file_exists",
+      "value": "True",
+      "address": "7fe0c1d21820",
+      "line_number": "104",
+      "stack_depth": "2",
+      "id": 92
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "This file exists: True"
+      ],
+      "id": 93
+    },
+    {
+      "type": "CALL",
+      "subject": "add",
+      "stack_depth": "3",
+      "args": [
+        "2",
+        "3"
+      ],
+      "id": 94
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "a + b",
+      "line_number": "11",
+      "stack_depth": "3",
+      "id": 95
+    },
+    {
+      "type": "CALL",
+      "subject": "add",
+      "stack_depth": "3",
+      "args": [
+        "4",
+        "5"
+      ],
+      "id": 96
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "a + b",
+      "line_number": "11",
+      "stack_depth": "3",
+      "id": 97
+    },
+    {
+      "type": "CALL",
+      "subject": "multiply",
+      "stack_depth": "3",
+      "args": [
+        "5",
+        "9"
+      ],
+      "id": 98
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "5",
+      "address": "7fe0c1d24f90",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 99
+    },
+    {
+      "type": "READ",
+      "subject": "y",
+      "format_spec": "9",
+      "address": "7fe0c1d25010",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 100
+    },
+    {
+      "type": "DECL",
+      "subject": "result",
+      "value": "45",
+      "address": "7fe0c1d25490",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 101
+    },
+    {
+      "type": "RETURN",
+      "subtype": "result",
+      "value": "45",
+      "line_number": "15",
+      "stack_depth": "3",
+      "address": "7fe0c1d25490",
+      "id": 102
+    },
+    {
+      "type": "DECL",
+      "subject": "nested_result",
+      "value": "45",
+      "address": "7fe0c1d25490",
+      "line_number": "108",
+      "stack_depth": "2",
+      "id": 103
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Nested result: 45"
+      ],
+      "id": 104
+    },
+    {
+      "type": "DECL",
+      "subject": "data_dict",
+      "value": "{'name': 'Test', 'value': 42, 'active': True}",
+      "address": "7fe0c136e140",
+      "line_number": "112",
+      "stack_depth": "2",
+      "id": 105
+    },
+    {
+      "type": "READ",
+      "subject": "json",
+      "format_spec": "<module 'json' from '/usr/local/lib/python3.13/json/__init__.py'>",
+      "address": "7fe0c13c6480",
+      "line_number": "113",
+      "stack_depth": "2",
+      "id": 106
+    },
+    {
+      "type": "READ",
+      "subject": "data_dict",
+      "format_spec": "{'name': 'Test', 'value': 42, 'active': True}",
+      "address": "7fe0c136e140",
+      "line_number": "113",
+      "stack_depth": "2",
+      "id": 107
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "dumps",
+      "line_number": "113",
+      "stack_depth": "2",
+      "id": 108
+    },
+    {
+      "type": "DECL",
+      "subject": "json_string",
+      "value": "{\"name\": \"Test\", \"value\": 42, \"active\": true}",
+      "address": "7fe0c139df50",
+      "line_number": "113",
+      "stack_depth": "2",
+      "id": 109
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "JSON: {\"name\": \"Test\", \"value\": 42, \"active\": true}"
+      ],
+      "id": 110
+    },
+    {
+      "type": "READ",
+      "subject": "json",
+      "format_spec": "<module 'json' from '/usr/local/lib/python3.13/json/__init__.py'>",
+      "address": "7fe0c13c6480",
+      "line_number": "116",
+      "stack_depth": "2",
+      "id": 111
+    },
+    {
+      "type": "READ",
+      "subject": "json_string",
+      "format_spec": "{\"name\": \"Test\", \"value\": 42, \"active\": true}",
+      "address": "7fe0c139df50",
+      "line_number": "116",
+      "stack_depth": "2",
+      "id": 112
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "loads",
+      "line_number": "116",
+      "stack_depth": "2",
+      "id": 113
+    },
+    {
+      "type": "DECL",
+      "subject": "parsed_data",
+      "value": "{'name': 'Test', 'value': 42, 'active': True}",
+      "address": "7fe0c1214140",
+      "line_number": "116",
+      "stack_depth": "2",
+      "id": 114
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Parsed: {'name': 'Test', 'value': 42, 'active': True}"
+      ],
+      "id": 115
+    },
+    {
+      "type": "DECL",
+      "subject": "sample_text",
+      "value": "hello world hello python world python",
+      "address": "7fe0c1362c40",
+      "line_number": "120",
+      "stack_depth": "2",
+      "id": 116
+    },
+    {
+      "type": "READ",
+      "subject": "sample_text",
+      "format_spec": "hello world hello python world python",
+      "address": "7fe0c1362c40",
+      "line_number": "121",
+      "stack_depth": "2",
+      "id": 117
+    },
+    {
+      "type": "CALL",
+      "subject": "analyze_text",
+      "stack_depth": "3",
+      "args": [
+        "hello world hello python world python"
+      ],
+      "id": 118
+    },
+    {
+      "type": "READ",
+      "subject": "text",
+      "format_spec": "hello world hello python world python",
+      "address": "7fe0c1362c40",
+      "line_number": "40",
+      "stack_depth": "3",
+      "id": 119
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "split",
+      "line_number": "40",
+      "stack_depth": "3",
+      "id": 120
+    },
+    {
+      "type": "DECL",
+      "subject": "words",
+      "value": "['hello', 'world', 'hello', 'python', 'world', 'python']",
+      "address": "7fe0c13a7ec0",
+      "line_number": "40",
+      "stack_depth": "3",
+      "id": 121
+    },
+    {
+      "type": "READ",
+      "subject": "words",
+      "format_spec": "['hello', 'world', 'hello', 'python', 'world', 'python']",
+      "address": "7fe0c13a7ec0",
+      "line_number": "41",
+      "stack_depth": "3",
+      "id": 122
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "Counter",
+      "line_number": "41",
+      "stack_depth": "3",
+      "id": 123
+    },
+    {
+      "type": "DECL",
+      "subject": "word_count",
+      "value": "Counter({'hello': 2, 'world': 2, 'python': 2})",
+      "address": "7fe0c13b2210",
+      "line_number": "41",
+      "stack_depth": "3",
+      "id": 124
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "dict(word_count)",
+      "line_number": "42",
+      "stack_depth": "3",
+      "id": 125
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "dict",
+      "line_number": "42",
+      "stack_depth": "2",
+      "id": 126
+    },
+    {
+      "type": "DECL",
+      "subject": "word_freq",
+      "value": "{'hello': 2, 'world': 2, 'python': 2}",
+      "address": "7fe0c1250a40",
+      "line_number": "121",
+      "stack_depth": "2",
+      "id": 127
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Word frequencies: {'hello': 2, 'world': 2, 'python': 2}"
+      ],
+      "id": 128
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "16.0",
+      "address": "7fe0c145f7d0",
+      "line_number": "125",
+      "stack_depth": "2",
+      "id": 129
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "16.0",
+      "address": "7fe0c145f7d0",
+      "line_number": "125",
+      "stack_depth": "2",
+      "id": 130
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "16.0",
+      "address": "7fe0c145f7d0",
+      "line_number": "125",
+      "stack_depth": "2",
+      "id": 131
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "range",
+      "line_number": "125",
+      "stack_depth": "2",
+      "id": 132
+    },
+    {
+      "type": "CALL",
+      "subject": "multiply",
+      "stack_depth": "3",
+      "args": [
+        "1",
+        "1"
+      ],
+      "id": 133
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "1",
+      "address": "7fe0c1d24f10",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 134
+    },
+    {
+      "type": "READ",
+      "subject": "y",
+      "format_spec": "1",
+      "address": "7fe0c1d24f10",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 135
+    },
+    {
+      "type": "DECL",
+      "subject": "result",
+      "value": "1",
+      "address": "7fe0c1d24f10",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 136
+    },
+    {
+      "type": "RETURN",
+      "subtype": "result",
+      "value": "1",
+      "line_number": "15",
+      "stack_depth": "3",
+      "address": "7fe0c1d24f10",
+      "id": 137
+    },
+    {
+      "type": "CALL",
+      "subject": "multiply",
+      "stack_depth": "3",
+      "args": [
+        "2",
+        "2"
+      ],
+      "id": 138
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "2",
+      "address": "7fe0c1d24f30",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 139
+    },
+    {
+      "type": "READ",
+      "subject": "y",
+      "format_spec": "2",
+      "address": "7fe0c1d24f30",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 140
+    },
+    {
+      "type": "DECL",
+      "subject": "result",
+      "value": "4",
+      "address": "7fe0c1d24f70",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 141
+    },
+    {
+      "type": "RETURN",
+      "subtype": "result",
+      "value": "4",
+      "line_number": "15",
+      "stack_depth": "3",
+      "address": "7fe0c1d24f70",
+      "id": 142
+    },
+    {
+      "type": "CALL",
+      "subject": "multiply",
+      "stack_depth": "3",
+      "args": [
+        "3",
+        "3"
+      ],
+      "id": 143
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "3",
+      "address": "7fe0c1d24f50",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 144
+    },
+    {
+      "type": "READ",
+      "subject": "y",
+      "format_spec": "3",
+      "address": "7fe0c1d24f50",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 145
+    },
+    {
+      "type": "DECL",
+      "subject": "result",
+      "value": "9",
+      "address": "7fe0c1d25010",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 146
+    },
+    {
+      "type": "RETURN",
+      "subtype": "result",
+      "value": "9",
+      "line_number": "15",
+      "stack_depth": "3",
+      "address": "7fe0c1d25010",
+      "id": 147
+    },
+    {
+      "type": "CALL",
+      "subject": "multiply",
+      "stack_depth": "3",
+      "args": [
+        "4",
+        "4"
+      ],
+      "id": 148
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "4",
+      "address": "7fe0c1d24f70",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 149
+    },
+    {
+      "type": "READ",
+      "subject": "y",
+      "format_spec": "4",
+      "address": "7fe0c1d24f70",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 150
+    },
+    {
+      "type": "DECL",
+      "subject": "result",
+      "value": "16",
+      "address": "7fe0c1d250f0",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 151
+    },
+    {
+      "type": "RETURN",
+      "subtype": "result",
+      "value": "16",
+      "line_number": "15",
+      "stack_depth": "3",
+      "address": "7fe0c1d250f0",
+      "id": 152
+    },
+    {
+      "type": "CALL",
+      "subject": "multiply",
+      "stack_depth": "3",
+      "args": [
+        "5",
+        "5"
+      ],
+      "id": 153
+    },
+    {
+      "type": "READ",
+      "subject": "x",
+      "format_spec": "5",
+      "address": "7fe0c1d24f90",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 154
+    },
+    {
+      "type": "READ",
+      "subject": "y",
+      "format_spec": "5",
+      "address": "7fe0c1d24f90",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 155
+    },
+    {
+      "type": "DECL",
+      "subject": "result",
+      "value": "25",
+      "address": "7fe0c1d25210",
+      "line_number": "14",
+      "stack_depth": "3",
+      "id": 156
+    },
+    {
+      "type": "RETURN",
+      "subtype": "result",
+      "value": "25",
+      "line_number": "15",
+      "stack_depth": "3",
+      "address": "7fe0c1d25210",
+      "id": 157
+    },
+    {
+      "type": "DECL",
+      "subject": "squared",
+      "value": "[1, 4, 9, 16, 25]",
+      "address": "7fe0c13a7ec0",
+      "line_number": "125",
+      "stack_depth": "2",
+      "id": 158
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Squared numbers: [1, 4, 9, 16, 25]"
+      ],
+      "id": 159
+    },
+    {
+      "type": "READ",
+      "subject": "numbers",
+      "format_spec": "[10, 20, 30, 40, 50]",
+      "address": "7fe0c1518e00",
+      "line_number": "129",
+      "stack_depth": "2",
+      "id": 160
+    },
+    {
+      "type": "CALL",
+      "subject": "process_data",
+      "stack_depth": "3",
+      "args": [
+        "[10, 20, 30, 40, 50]"
+      ],
+      "id": 161
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "total",
+      "value": "0",
+      "address": "7fe0c1d24ef0",
+      "line_number": "33",
+      "stack_depth": "3",
+      "id": 162
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "34",
+      "stack_depth": "3",
+      "condition": "data",
+      "condition_result": "1",
+      "id": 163
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "10",
+      "address": "7fe0c1d25030",
+      "line_number": "34",
+      "stack_depth": "3",
+      "id": 164
+    },
+    {
+      "type": "READ",
+      "subject": "total",
+      "format_spec": "0",
+      "address": "7fe0c1d24ef0",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 165
+    },
+    {
+      "type": "READ",
+      "subject": "item",
+      "format_spec": "10",
+      "address": "7fe0c1d25030",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 166
+    },
+    {
+      "type": "CALL",
+      "subject": "add",
+      "stack_depth": "4",
+      "args": [
+        "0",
+        "10"
+      ],
+      "id": 167
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "a + b",
+      "line_number": "11",
+      "stack_depth": "4",
+      "id": 168
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "total",
+      "value": "10",
+      "address": "7fe0c1d25030",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 169
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "34",
+      "stack_depth": "3",
+      "condition": "data",
+      "condition_result": "1",
+      "id": 170
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "20",
+      "address": "7fe0c1d25170",
+      "line_number": "34",
+      "stack_depth": "3",
+      "id": 171
+    },
+    {
+      "type": "READ",
+      "subject": "total",
+      "format_spec": "10",
+      "address": "7fe0c1d25030",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 172
+    },
+    {
+      "type": "READ",
+      "subject": "item",
+      "format_spec": "20",
+      "address": "7fe0c1d25170",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 173
+    },
+    {
+      "type": "CALL",
+      "subject": "add",
+      "stack_depth": "4",
+      "args": [
+        "10",
+        "20"
+      ],
+      "id": 174
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "a + b",
+      "line_number": "11",
+      "stack_depth": "4",
+      "id": 175
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "total",
+      "value": "30",
+      "address": "7fe0c1d252b0",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 176
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "34",
+      "stack_depth": "3",
+      "condition": "data",
+      "condition_result": "1",
+      "id": 177
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "30",
+      "address": "7fe0c1d252b0",
+      "line_number": "34",
+      "stack_depth": "3",
+      "id": 178
+    },
+    {
+      "type": "READ",
+      "subject": "total",
+      "format_spec": "30",
+      "address": "7fe0c1d252b0",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 179
+    },
+    {
+      "type": "READ",
+      "subject": "item",
+      "format_spec": "30",
+      "address": "7fe0c1d252b0",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 180
+    },
+    {
+      "type": "CALL",
+      "subject": "add",
+      "stack_depth": "4",
+      "args": [
+        "30",
+        "30"
+      ],
+      "id": 181
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "a + b",
+      "line_number": "11",
+      "stack_depth": "4",
+      "id": 182
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "total",
+      "value": "60",
+      "address": "7fe0c1d25670",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 183
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "34",
+      "stack_depth": "3",
+      "condition": "data",
+      "condition_result": "1",
+      "id": 184
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "40",
+      "address": "7fe0c1d253f0",
+      "line_number": "34",
+      "stack_depth": "3",
+      "id": 185
+    },
+    {
+      "type": "READ",
+      "subject": "total",
+      "format_spec": "60",
+      "address": "7fe0c1d25670",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 186
+    },
+    {
+      "type": "READ",
+      "subject": "item",
+      "format_spec": "40",
+      "address": "7fe0c1d253f0",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 187
+    },
+    {
+      "type": "CALL",
+      "subject": "add",
+      "stack_depth": "4",
+      "args": [
+        "60",
+        "40"
+      ],
+      "id": 188
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "a + b",
+      "line_number": "11",
+      "stack_depth": "4",
+      "id": 189
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "total",
+      "value": "100",
+      "address": "7fe0c1d25b70",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 190
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "34",
+      "stack_depth": "3",
+      "condition": "data",
+      "condition_result": "1",
+      "id": 191
+    },
+    {
+      "type": "DECL",
+      "subject": "item",
+      "value": "50",
+      "address": "7fe0c1d25530",
+      "line_number": "34",
+      "stack_depth": "3",
+      "id": 192
+    },
+    {
+      "type": "READ",
+      "subject": "total",
+      "format_spec": "100",
+      "address": "7fe0c1d25b70",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 193
+    },
+    {
+      "type": "READ",
+      "subject": "item",
+      "format_spec": "50",
+      "address": "7fe0c1d25530",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 194
+    },
+    {
+      "type": "CALL",
+      "subject": "add",
+      "stack_depth": "4",
+      "args": [
+        "100",
+        "50"
+      ],
+      "id": 195
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "a + b",
+      "line_number": "11",
+      "stack_depth": "4",
+      "id": 196
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "total",
+      "value": "150",
+      "address": "7fe0c1d261b0",
+      "line_number": "35",
+      "stack_depth": "3",
+      "id": 197
+    },
+    {
+      "type": "RETURN",
+      "subtype": "total",
+      "value": "150",
+      "line_number": "36",
+      "stack_depth": "3",
+      "address": "7fe0c1d261b0",
+      "id": 198
+    },
+    {
+      "type": "DECL",
+      "subject": "processed",
+      "value": "150",
+      "address": "7fe0c1d261b0",
+      "line_number": "129",
+      "stack_depth": "2",
+      "id": 199
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Processed total: 150"
+      ],
+      "id": 200
+    },
+    {
+      "type": "READ",
+      "subject": "numbers",
+      "format_spec": "[10, 20, 30, 40, 50]",
+      "address": "7fe0c1518e00",
+      "line_number": "133",
+      "stack_depth": "2",
+      "id": 201
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "sorted",
+      "line_number": "133",
+      "stack_depth": "2",
+      "id": 202
+    },
+    {
+      "type": "DECL",
+      "subject": "sorted_numbers",
+      "value": "[50, 40, 30, 20, 10]",
+      "address": "7fe0c123bf40",
+      "line_number": "133",
+      "stack_depth": "2",
+      "id": 203
+    },
+    {
+      "type": "READ",
+      "subject": "numbers",
+      "format_spec": "[10, 20, 30, 40, 50]",
+      "address": "7fe0c1518e00",
+      "line_number": "134",
+      "stack_depth": "2",
+      "id": 204
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "max",
+      "line_number": "134",
+      "stack_depth": "2",
+      "id": 205
+    },
+    {
+      "type": "DECL",
+      "subject": "max_num",
+      "value": "50",
+      "address": "7fe0c1d25530",
+      "line_number": "134",
+      "stack_depth": "2",
+      "id": 206
+    },
+    {
+      "type": "READ",
+      "subject": "numbers",
+      "format_spec": "[10, 20, 30, 40, 50]",
+      "address": "7fe0c1518e00",
+      "line_number": "135",
+      "stack_depth": "2",
+      "id": 207
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "min",
+      "line_number": "135",
+      "stack_depth": "2",
+      "id": 208
+    },
+    {
+      "type": "DECL",
+      "subject": "min_num",
+      "value": "10",
+      "address": "7fe0c1d25030",
+      "line_number": "135",
+      "stack_depth": "2",
+      "id": 209
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Sorted: [50, 40, 30, 20, 10]"
+      ],
+      "id": 210
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Max: 50, Min: 10"
+      ],
+      "id": 211
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "int",
+      "line_number": "141",
+      "stack_depth": "2",
+      "id": 212
+    },
+    {
+      "type": "DECL",
+      "subject": "int_val",
+      "value": "123",
+      "address": "7fe0c1d25e50",
+      "line_number": "141",
+      "stack_depth": "2",
+      "id": 213
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "float",
+      "line_number": "142",
+      "stack_depth": "2",
+      "id": 214
+    },
+    {
+      "type": "DECL",
+      "subject": "float_val",
+      "value": "3.14",
+      "address": "7fe0c133dc10",
+      "line_number": "142",
+      "stack_depth": "2",
+      "id": 215
+    },
+    {
+      "type": "EXTERNAL_CALL",
+      "subject": "str",
+      "line_number": "143",
+      "stack_depth": "2",
+      "id": 216
+    },
+    {
+      "type": "DECL",
+      "subject": "str_val",
+      "value": "42",
+      "address": "7fe0c11c7f90",
+      "line_number": "143",
+      "stack_depth": "2",
+      "id": 217
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "Conversions: 123, 3.14, 42"
+      ],
+      "id": 218
+    },
+    {
+      "type": "UNKNOWN",
+      "args": [
+        "=== Test Complete ==="
+      ],
+      "id": 219
+    }
+  ],
+  "seed": 88657359489841987922
+}

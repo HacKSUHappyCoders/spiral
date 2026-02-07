@@ -3,11 +3,11 @@
   "metadata": {
     "file_name": "00002.c",
     "file_path": "/srv/mosiacs/data/00002.c",
-    "file_size": "158",
+    "file_size": "173",
     "file_mode": "-rwxrwxrwx",
-    "modified": "2026-02-07 19:56:56",
-    "accessed": "2026-02-07 19:56:56",
-    "created": "2026-02-07 19:56:56",
+    "modified": "2026-02-07 20:19:28",
+    "accessed": "2026-02-07 20:27:24",
+    "created": "2026-02-07 20:19:28",
     "language": "C",
     "total_lines": "16",
     "non_blank_lines": "12",
@@ -21,7 +21,9 @@
     "num_returns": "1",
     "num_loops": "1",
     "num_branches": "1",
-    "max_nesting_depth": "2"
+    "max_nesting_depth": "2",
+    "includes": "",
+    "defined_functions": "main"
   },
   "traces": [
     {
@@ -34,7 +36,7 @@
       "type": "DECL",
       "subject": "x",
       "value": "10",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "2",
       "stack_depth": "1",
       "id": 1
@@ -52,7 +54,7 @@
       "type": "READ",
       "subject": "x",
       "format_spec": "10",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "5",
       "stack_depth": "1",
       "id": 3
@@ -61,7 +63,7 @@
       "type": "ASSIGN",
       "subject": "x",
       "value": "7",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "5",
       "stack_depth": "1",
       "id": 4
@@ -79,7 +81,7 @@
       "type": "READ",
       "subject": "x",
       "format_spec": "7",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "5",
       "stack_depth": "1",
       "id": 6
@@ -88,7 +90,7 @@
       "type": "ASSIGN",
       "subject": "x",
       "value": "4",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "5",
       "stack_depth": "1",
       "id": 7
@@ -106,7 +108,7 @@
       "type": "READ",
       "subject": "x",
       "format_spec": "4",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "5",
       "stack_depth": "1",
       "id": 9
@@ -115,7 +117,7 @@
       "type": "ASSIGN",
       "subject": "x",
       "value": "1",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "5",
       "stack_depth": "1",
       "id": 10
@@ -133,7 +135,7 @@
       "type": "READ",
       "subject": "x",
       "format_spec": "1",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "5",
       "stack_depth": "1",
       "id": 12
@@ -142,7 +144,7 @@
       "type": "ASSIGN",
       "subject": "x",
       "value": "-2",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "5",
       "stack_depth": "1",
       "id": 13
@@ -167,7 +169,7 @@
       "type": "ASSIGN",
       "subject": "x",
       "value": "0",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "line_number": "11",
       "stack_depth": "1",
       "id": 16
@@ -178,9 +180,9 @@
       "value": "0",
       "line_number": "14",
       "stack_depth": "1",
-      "address": "0x7ffce293fe0c",
+      "address": "0x7ffc0e18f8fc",
       "id": 17
     }
   ],
-  "seed": 13876653239935969693
+  "seed": 60767603409012473255
 }

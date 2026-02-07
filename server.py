@@ -153,26 +153,23 @@ def process_code_files():
                 with open(output_path) as f:
                     result = json.load(f)
 
-                if result.get("success", False):
-                    # Save to data/json directory
-                    os.makedirs(JSON_DIR, exist_ok=True)
-                    save_name = f"{os.path.splitext(filename)[0]}.json"
-                    save_path = os.path.join(JSON_DIR, save_name)
-                    with open(save_path, "w") as f:
-                        json.dump(result, f, indent=2)
-                    
-                    results.append({
-                        "file": filename,
-                        "output": save_name,
-                        "success": True,
-                        "data": result  # Include the full result data
-                    })
-                else:
-                    errors.append({
-                        "file": filename,
-                        "stage": result.get("error", {}).get("stage", "unknown"),
-                        "message": result.get("error", {}).get("message", "Unknown error")
-                    })
+                # ALWAYS include the result for visualization, even with no traces
+                # The frontend error panel will display compile/runtime errors
+                # Save to data/json directory
+                os.makedirs(JSON_DIR, exist_ok=True)
+                save_name = f"{os.path.splitext(filename)[0]}.json"
+                save_path = os.path.join(JSON_DIR, save_name)
+                with open(save_path, "w") as f:
+                    json.dump(result, f, indent=2)
+                
+                is_success = result.get("success", False)
+                results.append({
+                    "file": filename,
+                    "output": save_name,
+                    "success": is_success,
+                    "data": result,  # Include result regardless of success or traces
+                    "warning": result.get("error", {}).get("message") if not is_success else None
+                })
 
         except Exception as e:
             errors.append({
@@ -181,19 +178,21 @@ def process_code_files():
                 "message": str(e)
             })
 
-    # Return results
-    if len(errors) > 0 and len(results) == 0:
+    # Return results - always return 200 if we have any results (even with warnings)
+    # This allows visualization to proceed even with runtime errors
+    if len(results) > 0:
         return jsonify({
-            "success": False,
-            "errors": errors
-        }), 400
+            "success": True,
+            "processed": len(results),
+            "results": results,
+            "errors": errors if errors else None
+        })
     
+    # Only return error status if we have zero results
     return jsonify({
-        "success": True,
-        "processed": len(results),
-        "results": results,
-        "errors": errors if errors else None
-    })
+        "success": False,
+        "errors": errors
+    }), 400
 
 
 # ── Static files: serve the front-end ────────────────────────────────

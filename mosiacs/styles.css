@@ -215,8 +215,7 @@ select option:checked {
     transform: translateY(-1px);
 }
 
-.code-file-item input[type="checkbox"],
-.code-file-item input[type="radio"] {
+.code-file-item input[type="checkbox"] {
     cursor: pointer;
     width: 16px;
     height: 16px;
