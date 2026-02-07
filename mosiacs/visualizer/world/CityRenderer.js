@@ -470,6 +470,91 @@ class CityRenderer {
 
     // ─── Shared helpers ────────────────────────────────────────────
 
+
+    _createFloatingLabel(name, text, pos, yOffset, color, scale) {
+        scale = scale || 1;
+        const planeSize = 3 * scale;
+        const plane = BABYLON.MeshBuilder.CreatePlane(name, { width: planeSize, height: planeSize * 0.5 }, this.scene);
+        plane.position = pos.clone();
+        plane.position.y += yOffset;
+        plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+
+        const mat = new BABYLON.StandardMaterial(name + '_mat', this.scene);
+        const texW = 512;
+        const texH = 256;
+        const dynTex = new BABYLON.DynamicTexture(name + '_tex', { width: texW, height: texH }, this.scene, false);
+        const ctx = dynTex.getContext();
+
+        ctx.fillStyle = `rgba(${Math.floor(color.r * 200)}, ${Math.floor(color.g * 200)}, ${Math.floor(color.b * 200)}, 0.75)`;
+        ctx.fillRect(0, 0, texW, texH);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(4, 4, texW - 8, texH - 8);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 36px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const words = text.split(' ');
+        const lines = [];
+        let cur = '';
+        words.forEach(w => {
+            const test = cur ? cur + ' ' + w : w;
+            if (ctx.measureText(test).width > texW - 40 && cur) { lines.push(cur); cur = w; }
+            else cur = test;
+        });
+        if (cur) lines.push(cur);
+        const lineH = 42;
+        const startY = texH / 2 - ((lines.length - 1) * lineH) / 2;
+        lines.forEach((line, i) => ctx.fillText(line, texW / 2, startY + i * lineH));
+
+        dynTex.update();
+        mat.diffuseTexture = dynTex;
+        mat.emissiveColor = new BABYLON.Color3(color.r * 0.2, color.g * 0.2, color.b * 0.2);
+        mat.alpha = color.a || 0.85;
+        mat.backFaceCulling = false;
+        plane.material = mat;
+
+        plane._dynTex = dynTex;
+        plane._labelColor = color;
+        return plane;
+    }
+
+    _updateLabelText(plane, text) {
+        if (!plane || !plane._dynTex) return;
+        const dynTex = plane._dynTex;
+        const color = plane._labelColor;
+        const ctx = dynTex.getContext();
+        const texW = 512;
+        const texH = 256;
+
+        ctx.clearRect(0, 0, texW, texH);
+        ctx.fillStyle = `rgba(${Math.floor(color.r * 200)}, ${Math.floor(color.g * 200)}, ${Math.floor(color.b * 200)}, 0.75)`;
+        ctx.fillRect(0, 0, texW, texH);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(4, 4, texW - 8, texH - 8);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 36px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const words = text.split(' ');
+        const lines = [];
+        let cur = '';
+        words.forEach(w => {
+            const test = cur ? cur + ' ' + w : w;
+            if (ctx.measureText(test).width > texW - 40 && cur) { lines.push(cur); cur = w; }
+            else cur = test;
+        });
+        if (cur) lines.push(cur);
+        const lineH = 42;
+        const startY = texH / 2 - ((lines.length - 1) * lineH) / 2;
+        lines.forEach((line, i) => ctx.fillText(line, texW / 2, startY + i * lineH));
+
+        dynTex.update();
+    }
+
     _animateScaleIn(mesh) {
         if (!mesh) return;
         mesh.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
