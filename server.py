@@ -11,19 +11,21 @@ Usage:
 Then open http://localhost:5000 in your browser.
 """
 
-import os
 import json
-from flask import Flask, send_from_directory, jsonify, abort
+import os
+
+from flask import Flask, abort, jsonify, send_from_directory
 
 app = Flask(__name__)
 
 # ── paths ────────────────────────────────────────────────────────────
-BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "mosiacs")
-DATA_DIR   = os.path.join(STATIC_DIR, "data")
+DATA_DIR = os.path.join(STATIC_DIR, "data")
 
 
 # ── API: serve trace JSON files ──────────────────────────────────────
+
 
 @app.route("/api/trace")
 @app.route("/api/trace/<filename>")
@@ -59,6 +61,7 @@ def list_traces():
 
 # ── Static files: serve the front-end ────────────────────────────────
 
+
 @app.route("/")
 def index():
     return send_from_directory(STATIC_DIR, "index.html")
@@ -72,5 +75,5 @@ def static_files(path):
 # ── Run ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("🎨  Code Mosaic server running at http://localhost:5000")
+    print("Code Mosaic server running at http://localhost:5000")
     app.run(debug=True, port=5000)
