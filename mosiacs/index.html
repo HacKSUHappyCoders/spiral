@@ -17,12 +17,14 @@
         </div>
 
         <div>
-            <select id="traceFile">
+            <select id="traceFile" multiple size="4">
+                <option value="000013_c.json">000013.c (NEW)</option>
                 <option value="small_test_data.json">Small Test</option>
                 <option value="test_data.json">Test Data</option>
                 <option value="big_test_data.json">Big Test</option>
             </select>
-            <button id="loadExample">Load Trace</button>
+            <button id="loadExample">Load Single</button>
+            <button id="loadMultiple">Load Multiple</button>
             <input type="file" id="fileUpload" accept=".c,.py">
             <button id="uploadBtn">Upload & Visualize</button>
             <button id="resetCamera">Reset Camera</button>
