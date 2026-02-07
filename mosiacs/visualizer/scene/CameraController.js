@@ -100,10 +100,11 @@ class CameraController {
     // ─── Private: Blender-style controls ───────────────────────────
 
     _setupBlenderControls() {
-        // Remove default inputs
+        // Remove default inputs that conflict with our custom controls
         this.camera.inputs.removeByType("ArcRotateCameraPointersInput");
+        this.camera.inputs.removeByType("ArcRotateCameraKeyboardMoveInput");
 
-        // Re-add with custom button mapping
+        // Re-add pointer input with custom button mapping
         const pointersInput = new BABYLON.ArcRotateCameraPointersInput();
         pointersInput.buttons = [0]; // Only left-mouse orbits
         pointersInput._useCtrlForPanning = false;
@@ -114,29 +115,47 @@ class CameraController {
     }
 
     _setupBlenderPanShortcut() {
-        let shiftHeld = false;
-
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Shift') shiftHeld = true;
-        });
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'Shift') shiftHeld = false;
-        });
+        let isPanning = false;
+        let lastX = 0;
+        let lastY = 0;
 
         this.scene.onPrePointerObservable.add((pointerInfo) => {
+            const evt = pointerInfo.event;
+
             if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
-                const evt = pointerInfo.event;
-                if (evt.button === 0 && shiftHeld) {
-                    this._pointersInput.buttons = [2];
+                if (evt.button === 0 && evt.shiftKey) {
+                    isPanning = true;
+                    lastX = evt.clientX;
+                    lastY = evt.clientY;
+                    // Skip default orbit handling for this drag
+                    pointerInfo.skipOnPointerObservable = true;
                 }
             }
-        });
 
-        this.scene.onPrePointerObservable.add((pointerInfo) => {
+            if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERMOVE && isPanning) {
+                const dx = evt.clientX - lastX;
+                const dy = evt.clientY - lastY;
+                lastX = evt.clientX;
+                lastY = evt.clientY;
+
+                // Pan the camera target in screen-space
+                const camera = this.camera;
+                const forward = camera.target.subtract(camera.position).normalize();
+                const worldUp = BABYLON.Vector3.Up();
+                const right = BABYLON.Vector3.Cross(forward, worldUp).normalize();
+                const up = BABYLON.Vector3.Cross(right, forward).normalize();
+
+                const slow = evt.ctrlKey ? 0.2 : 1.0;
+                const sensitivity = camera.radius * 0.002 * slow;
+                const offset = right.scale(-dx * sensitivity).add(up.scale(dy * sensitivity));
+                camera.target.addInPlace(offset);
+
+                pointerInfo.skipOnPointerObservable = true;
+            }
+
             if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERUP) {
-                const evt = pointerInfo.event;
-                if (evt.button === 0) {
-                    this._pointersInput.buttons = [0];
+                if (evt.button === 0 && isPanning) {
+                    isPanning = false;
                 }
             }
         });
@@ -145,6 +164,36 @@ class CameraController {
     _setupBlenderKeyboardShortcuts() {
         window.addEventListener('keydown', (e) => {
             if (!this.camera) return;
+
+            // Ctrl slows all keyboard camera actions
+            const slow = e.ctrlKey ? 0.2 : 1.0;
+
+            // Shift + Arrow Keys: Pan camera
+            if (e.shiftKey && e.code.startsWith('Arrow')) {
+                e.preventDefault();
+                this._panWithArrowKey(e.code, slow);
+                return;
+            }
+
+            // Plain Arrow Keys: Orbit camera
+            if (e.code.startsWith('Arrow')) {
+                e.preventDefault();
+                this._orbitWithArrowKey(e.code, slow);
+                return;
+            }
+
+            // PageUp/PageDown: Zoom in/out
+            if (e.code === 'PageUp' || e.code === 'PageDown') {
+                e.preventDefault();
+                const base = e.code === 'PageUp' ? 0.85 : 1.18;
+                // Lerp toward 1.0 when slow (ctrl held)
+                const zoomFactor = 1.0 + (base - 1.0) * slow;
+                this.camera.radius = Math.max(
+                    this.camera.lowerRadiusLimit,
+                    Math.min(this.camera.upperRadiusLimit, this.camera.radius * zoomFactor)
+                );
+                return;
+            }
 
             // Numpad 5: Toggle orthographic/perspective
             if (e.code === 'Numpad5') {
@@ -249,5 +298,70 @@ class CameraController {
         targetAnim.setEasingFunction(ease);
 
         this.scene.beginDirectAnimation(camera, [targetAnim], 0, 20, false);
+    }
+
+    /**
+     * Pan the camera target in screen-space directions using arrow keys.
+     * Left/Right move along the camera's local right axis.
+     * Up/Down move along the camera's local up axis.
+     * Pan speed scales with distance (radius) so it feels consistent.
+     */
+    _panWithArrowKey(code, slow = 1.0) {
+        const camera = this.camera;
+        const panSpeed = camera.radius * 0.04 * slow;
+
+        // Camera's forward direction (from camera to target)
+        const forward = camera.target.subtract(camera.position).normalize();
+
+        // Camera's right direction (forward × world up)
+        const worldUp = BABYLON.Vector3.Up();
+        const right = BABYLON.Vector3.Cross(forward, worldUp).normalize();
+
+        // Camera's local up direction (right × forward) — view-plane up
+        const up = BABYLON.Vector3.Cross(right, forward).normalize();
+
+        let offset = BABYLON.Vector3.Zero();
+
+        switch (code) {
+            case 'ArrowLeft':
+                offset = right.scale(panSpeed);
+                break;
+            case 'ArrowRight':
+                offset = right.scale(-panSpeed);
+                break;
+            case 'ArrowUp':
+                offset = up.scale(panSpeed);
+                break;
+            case 'ArrowDown':
+                offset = up.scale(-panSpeed);
+                break;
+        }
+
+        camera.target.addInPlace(offset);
+    }
+
+    /**
+     * Orbit the camera around its target using arrow keys.
+     * Left/Right adjust alpha (horizontal orbit).
+     * Up/Down adjust beta (vertical orbit), clamped to avoid flipping.
+     */
+    _orbitWithArrowKey(code, slow = 1.0) {
+        const camera = this.camera;
+        const orbitSpeed = 0.35 * slow;
+
+        switch (code) {
+            case 'ArrowLeft':
+                camera.alpha -= orbitSpeed;
+                break;
+            case 'ArrowRight':
+                camera.alpha += orbitSpeed;
+                break;
+            case 'ArrowUp':
+                camera.beta = Math.max(0.01, camera.beta - orbitSpeed);
+                break;
+            case 'ArrowDown':
+                camera.beta = Math.min(Math.PI - 0.01, camera.beta + orbitSpeed);
+                break;
+        }
     }
 }
