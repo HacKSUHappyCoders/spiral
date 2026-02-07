@@ -108,25 +108,21 @@ class GalaxyWarpManager {
             const firstIdx = entity.stepIndices[0];
             
             // For calls, collect all steps following the call until matching RETURN
+            // Uses CALL/RETURN balance instead of depth (depth may be unreliable)
             if (entity.type === 'call') {
-                const callStep = parentSubTrace[firstIdx];
-                const callDepth = Number(callStep && callStep.depth) || 0;
                 const children = [];
                 let callBalance = 1; // We've seen 1 CALL, need to match its RETURN
                 for (let j = firstIdx + 1; j < parentSubTrace.length; j++) {
                     const step = parentSubTrace[j];
                     if (!step) continue;
-                    const d = Number(step.depth) || 0;
-                    // Track nested calls to match the right RETURN
-                    if (step.type === 'CALL' && d <= callDepth) callBalance++;
-                    if (step.type === 'RETURN' && d <= callDepth) {
+                    if (step.type === 'CALL') callBalance++;
+                    if (step.type === 'RETURN') {
                         callBalance--;
                         if (callBalance <= 0) {
                             children.push(parentSubTrace[j]);
                             break;
                         }
                     }
-                    if (d < callDepth) break;
                     children.push(parentSubTrace[j]);
                 }
                 subTrace = children;
@@ -153,8 +149,10 @@ class GalaxyWarpManager {
         // If already in a galaxy, push current state onto the stack
         if (this.warpedGalaxy) {
             this._galaxyStack.push(this.warpedGalaxy);
-            // Don't dispose the current galaxy — just dim it further
-            this._dimGalaxyMeshes(this.warpedGalaxy, 0.15);
+            // Don't dispose the current galaxy — just dim it to recede visually
+            // while keeping it and its warp lines clearly visible
+            this._dimGalaxyMeshes(this.warpedGalaxy, 0.45);
+            this._dimGalaxyWarpVisuals(this.warpedGalaxy, 0.45);
         } else {
             // First warp — dim the main spiral
             this._dimMainSpiral(0.3);
@@ -378,6 +376,53 @@ class GalaxyWarpManager {
                 mesh.material.alpha = 0.85;
             }
         }
+        // Also restore the warp visuals
+        this._restoreGalaxyWarpVisuals(galaxy);
+    }
+
+    /**
+     * Dim the warp line, particles, and source glow of a stacked galaxy
+     * so they remain visible but receded.
+     */
+    _dimGalaxyWarpVisuals(galaxy, alpha) {
+        if (galaxy.warpLine && !galaxy.warpLine.isDisposed() && galaxy.warpLine.material) {
+            if (galaxy.warpLine.material.isFrozen) galaxy.warpLine.material.unfreeze();
+            galaxy.warpLine.material.alpha *= alpha;
+        }
+        if (galaxy.warpParticles) {
+            for (const p of galaxy.warpParticles) {
+                if (p && !p.isDisposed() && p.material) {
+                    if (p.material.isFrozen) p.material.unfreeze();
+                    p.material.alpha *= alpha;
+                }
+            }
+        }
+        if (galaxy.sourceGlow && !galaxy.sourceGlow.isDisposed() && galaxy.sourceGlow.material) {
+            if (galaxy.sourceGlow.material.isFrozen) galaxy.sourceGlow.material.unfreeze();
+            galaxy.sourceGlow.material.alpha *= alpha;
+        }
+    }
+
+    /**
+     * Restore the warp line, particles, and source glow of a galaxy to full visibility.
+     */
+    _restoreGalaxyWarpVisuals(galaxy) {
+        if (galaxy.warpLine && !galaxy.warpLine.isDisposed() && galaxy.warpLine.material) {
+            if (galaxy.warpLine.material.isFrozen) galaxy.warpLine.material.unfreeze();
+            galaxy.warpLine.material.alpha = 0.7;
+        }
+        if (galaxy.warpParticles) {
+            for (const p of galaxy.warpParticles) {
+                if (p && !p.isDisposed() && p.material) {
+                    if (p.material.isFrozen) p.material.unfreeze();
+                    p.material.alpha = 0.85;
+                }
+            }
+        }
+        if (galaxy.sourceGlow && !galaxy.sourceGlow.isDisposed() && galaxy.sourceGlow.material) {
+            if (galaxy.sourceGlow.material.isFrozen) galaxy.sourceGlow.material.unfreeze();
+            galaxy.sourceGlow.material.alpha = 0.7;
+        }
     }
 
     // ─── Galaxy Builder ────────────────────────────────────────────
@@ -516,78 +561,105 @@ class GalaxyWarpManager {
 
     /**
      * Compute which sub-trace indices belong to each container entity.
-     * Container types (call, loop, condition) own a range of child steps:
-     *   - CALL: from the call step until the matching RETURN (same depth)
-     *   - LOOP: from the loop step until condition_result becomes 0 or a
-     *     different container starts at the same depth
-     *   - CONDITION: from the condition step until the matching BRANCH
+     * Container types (call, loop, condition) own a range of child steps.
+     *
+     * Uses CALL/RETURN balance tracking instead of depth comparison,
+     * because the trace data may have unreliable or missing depth values
+     * (e.g. recursive calls all reported at the same depth, or PARAM
+     * steps with no depth at all).
      *
      * Returns a Map<entityIndex, number[]> of sub-trace child indices.
      */
     _computeGalaxyChildMap(subTrace, entities) {
         const childMap = new Map();
 
-        // Build a quick lookup: sub-trace index → which entity owns it
-        // (entities that are containers we care about)
         for (let ei = 0; ei < entities.length; ei++) {
             const entity = entities[ei];
             const containerTypes = ['call', 'loop', 'condition'];
             if (!containerTypes.includes(entity.type)) continue;
 
             const firstStepIdx = entity.stepIndices ? entity.stepIndices[0] : -1;
-            if (firstStepIdx < 0) continue;
+            if (firstStepIdx < 0 || firstStepIdx >= subTrace.length) continue;
 
             const firstStep = subTrace[firstStepIdx];
             if (!firstStep) continue;
 
             const children = [];
-            const startDepth = Number(firstStep.depth) || 0;
-            const entityName = firstStep.name || firstStep.subject || '';
-            let callBalance = 1; // used only for call entities
 
-            // Walk forward from the first step to collect children
-            for (let j = firstStepIdx + 1; j < subTrace.length; j++) {
-                const step = subTrace[j];
-                if (!step) continue;
+            if (entity.type === 'call') {
+                // Track CALL/RETURN balance structurally.
+                // We start after the CALL step itself with balance = 1.
+                // Every subsequent CALL increments, every RETURN decrements.
+                // When balance hits 0, we've found the matching RETURN.
+                let callBalance = 1;
+                const callName = firstStep.name || firstStep.subject || '';
 
-                const stepDepth = Number(step.depth) || 0;
+                for (let j = firstStepIdx + 1; j < subTrace.length; j++) {
+                    const step = subTrace[j];
+                    if (!step) continue;
 
-                // For calls: collect everything until the matching RETURN.
-                // Track nested call balance to handle same-depth recursion.
-                if (entity.type === 'call') {
-                    if (step.type === 'CALL' && stepDepth <= startDepth) {
+                    if (step.type === 'CALL') {
                         callBalance++;
                     }
-                    if (step.type === 'RETURN' && stepDepth <= startDepth) {
+                    if (step.type === 'RETURN') {
                         callBalance--;
                         if (callBalance <= 0) {
-                            children.push(j); // include the RETURN itself
+                            children.push(j); // include the RETURN
                             break;
                         }
                     }
-                    if (stepDepth < startDepth) break;
                     children.push(j);
                 }
-                // For loops: steps on the same or deeper depth until
-                // we see another loop/call at the same depth
-                else if (entity.type === 'loop') {
-                    if (stepDepth < startDepth) break;
-                    if (stepDepth === startDepth &&
-                        (step.type === 'CALL' || step.type === 'CONDITION') &&
-                        j !== firstStepIdx) break;
-                    // For a new LOOP event at same depth with a different condition, break
-                    if (stepDepth === startDepth && step.type === 'LOOP' &&
-                        j !== firstStepIdx &&
-                        step.condition !== firstStep.condition) break;
+            } else if (entity.type === 'loop') {
+                // For loops: collect steps until we see a loop-end
+                // (condition_result === 0 for the same condition) or
+                // a different container starts that doesn't belong to us.
+                const loopCondition = firstStep.condition || '';
+                const startDepth = Number(firstStep.depth) || 0;
+
+                for (let j = firstStepIdx + 1; j < subTrace.length; j++) {
+                    const step = subTrace[j];
+                    if (!step) continue;
+                    const stepDepth = Number(step.depth) || 0;
+
+                    // A loop termination: same condition with result 0
+                    if (step.type === 'LOOP' && step.condition === loopCondition) {
+                        const cr = step.conditionResult !== undefined
+                            ? step.conditionResult
+                            : step.condition_result;
+                        if (Number(cr) === 0) {
+                            children.push(j);
+                            break;
+                        }
+                        // Same condition, still iterating — include it
+                        children.push(j);
+                        continue;
+                    }
+
+                    // If we hit a clearly shallower depth, stop
+                    if (stepDepth > 0 && startDepth > 0 && stepDepth < startDepth) break;
+
+                    // If we hit a new CALL or CONDITION at the same valid depth
+                    // that is not part of our loop body, stop
+                    if (stepDepth > 0 && startDepth > 0 && stepDepth === startDepth &&
+                        (step.type === 'CALL' || step.type === 'CONDITION')) break;
+
                     children.push(j);
                 }
-                // For conditions: a few steps following the condition
-                else if (entity.type === 'condition') {
+            } else if (entity.type === 'condition') {
+                // For conditions: collect steps until the matching BRANCH
+                const startDepth = Number(firstStep.depth) || 0;
+
+                for (let j = firstStepIdx + 1; j < subTrace.length; j++) {
+                    const step = subTrace[j];
+                    if (!step) continue;
+
                     if (step.type === 'BRANCH') {
                         children.push(j);
                         break;
                     }
-                    if (stepDepth < startDepth) break;
+                    const stepDepth = Number(step.depth) || 0;
+                    if (stepDepth > 0 && startDepth > 0 && stepDepth < startDepth) break;
                     children.push(j);
                 }
             }

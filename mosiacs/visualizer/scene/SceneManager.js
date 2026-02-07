@@ -279,9 +279,23 @@ class SceneManager {
     /**
      * Reset camera to default position — looking DOWN upon the spiral
      * mosaic from a bird's-eye view, zoomed out to see the whole city.
+     *
+     * @param {number} [spiralRadius] — outer radius of the spiral.
+     *   When provided the camera height and distance are computed so
+     *   the entire spiral fits comfortably in view.  Falls back to a
+     *   sensible default when omitted (e.g. before any trace is loaded).
      */
-    resetCamera() {
-        this.camera.setPosition(new BABYLON.Vector3(5, 65, 5));
+    resetCamera(spiralRadius) {
+        if (spiralRadius != null && spiralRadius > 0) {
+            // Position the camera above and slightly offset so the full
+            // spiral diameter is visible with some breathing room.
+            const height = spiralRadius * 2.2 + 10;   // scale with spiral + base offset
+            const offset = spiralRadius * 0.15;        // slight lateral offset for depth
+            this.camera.setPosition(new BABYLON.Vector3(offset, height, offset));
+        } else {
+            // No spiral data yet — use a reasonable fallback
+            this.camera.setPosition(new BABYLON.Vector3(5, 65, 5));
+        }
         this.camera.setTarget(new BABYLON.Vector3(0, 0, 0));
     }
 

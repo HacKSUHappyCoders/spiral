@@ -312,6 +312,15 @@ class CityRenderer {
     }
 
     /**
+     * Return the outer radius of the spiral based on the number of slots used.
+     * Useful for dynamically positioning the camera.
+     */
+    getSpiralRadius() {
+        const maxSlot = Math.max(this._nextSlot - 1, 0);
+        return this.spiralRadiusStart + maxSlot * this.spiralRadiusGrowth;
+    }
+
+    /**
      * Build a map from entity key → world position for the sub-spiral renderer.
      */
     _buildPositionMap() {
