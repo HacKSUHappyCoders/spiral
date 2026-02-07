@@ -273,9 +273,7 @@ def main():
     ap.add_argument("-r", "--random", help="Overrides the set seed (optional) [Cannot run with -s]", type=bool, nargs='?', const=True, default=False)
     args = ap.parse_args()
 
-    output_path = args.json_file
-
-    if not output_path:
+    if not args.json_file:
         print("Error: No output file specified.")
         sys.exit(1)
 
@@ -294,14 +292,14 @@ def main():
             sys.exit(1)
         seed = int(args.seed)
     else:
-        if os.path.exists(output_path) and not args.random:
-            with open(output_path, "r") as f:
+        if os.path.exists(args.json_file) and not args.random:
+            with open(args.json_file, "r") as f:
                 existing_data = json.load(f)
             seed = existing_data.get("seed", None)
         else:
             seed = -1
 
-    with open(output_path, "w") as f:
+    with open(args.json_file, "w") as f:
         f.write(fill_json(stdin_to_json(read_from_stdin()), seed))
 
 
