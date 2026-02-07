@@ -343,12 +343,30 @@ class CodeVisualizer {
         titleSpan.textContent = filename;
         header.appendChild(titleSpan);
 
+        const btnGroup = document.createElement('div');
+        btnGroup.style.display = 'flex';
+        btnGroup.style.gap = '8px';
+
+        const saveOnlyBtn = document.createElement('button');
+        saveOnlyBtn.className = 'code-save-btn';
+        saveOnlyBtn.textContent = 'Save';
+        saveOnlyBtn.addEventListener('click', () => this._saveCodeOnly());
+        btnGroup.appendChild(saveOnlyBtn);
+
         const saveBtn = document.createElement('button');
         saveBtn.className = 'code-save-btn';
         saveBtn.textContent = 'Save & Run';
         saveBtn.addEventListener('click', () => this._saveCodePanel());
-        header.appendChild(saveBtn);
+        btnGroup.appendChild(saveBtn);
 
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'code-close-btn';
+        closeBtn.textContent = '✕';
+        closeBtn.title = 'Close';
+        closeBtn.addEventListener('click', () => this._removeCodePanel());
+        btnGroup.appendChild(closeBtn);
+
+        header.appendChild(btnGroup);
         panel.appendChild(header);
 
         // Editor area: gutter + editor stack (overlay + textarea)
@@ -414,6 +432,13 @@ class CodeVisualizer {
         panel.appendChild(wrap);
 
         document.body.appendChild(panel);
+        
+        // Restore saved position if available
+        if (window.codePanelPosition) {
+            panel.style.left = window.codePanelPosition.left + 'px';
+            panel.style.top = window.codePanelPosition.top + 'px';
+        }
+        
         makeDraggable(panel, header);
 
         // Animate in
@@ -474,6 +499,88 @@ class CodeVisualizer {
         }).join('');
     }
 
+    _saveCodeOnly() {
+        const textarea = document.getElementById('codeTextarea');
+        if (!textarea) return;
+
+        const code = textarea.value;
+        const meta = this.parser.metadata;
+        const filename = meta && meta.file_name ? meta.file_name : 'code.c';
+
+        // Update stored source code
+        this.setSourceCode(code);
+
+        // Find the save button and show saving state
+        const saveBtns = document.querySelectorAll('.code-save-btn');
+        const saveBtn = saveBtns[0]; // First button is the "Save" button
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+        }
+
+        // Save to localStorage
+        try {
+            localStorage.setItem(`code_${filename}`, code);
+            
+            // Update the file in the code files list
+            const codeFileList = document.getElementById('codeFileList');
+            if (codeFileList) {
+                // Check if file already exists in the list
+                let existingCheckbox = document.getElementById(`file-${filename}`);
+                if (!existingCheckbox) {
+                    // Add new file to list
+                    const item = document.createElement('div');
+                    item.className = 'code-file-item';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = filename;
+                    checkbox.id = `file-${filename}`;
+                    checkbox.checked = true;
+                    
+                    const label = document.createElement('label');
+                    label.className = 'file-name';
+                    label.htmlFor = `file-${filename}`;
+                    label.textContent = filename;
+                    
+                    const editIcon = document.createElement('span');
+                    editIcon.className = 'edit-icon';
+                    editIcon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>`;
+                    editIcon.title = 'Edit file';
+                    editIcon.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        // Reopen editor with updated code
+                        this._buildCodePanel(this._sourceCode);
+                    });
+                    
+                    item.appendChild(checkbox);
+                    item.appendChild(label);
+                    item.appendChild(editIcon);
+                    codeFileList.appendChild(item);
+                }
+            }
+            
+            // Show brief feedback then restore button
+            setTimeout(() => {
+                if (saveBtn) {
+                    saveBtn.textContent = 'Saved!';
+                    setTimeout(() => {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save';
+                    }, 500);
+                }
+            }, 300);
+        } catch (err) {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            }
+            alert('Failed to save to local storage: ' + err.message);
+        }
+    }
+
     _saveCodePanel() {
         const textarea = document.getElementById('codeTextarea');
         if (!textarea) return;
@@ -489,11 +596,23 @@ class CodeVisualizer {
         // Update stored source code
         this.setSourceCode(code);
 
-        // Upload and re-visualize
+        // Save to localStorage
+        try {
+            localStorage.setItem(`code_${filename}`, code);
+        } catch (err) {
+            console.error('Failed to save to localStorage:', err);
+        }
+
+        // Process and visualize
         const saveBtn = document.querySelector('.code-save-btn');
         if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Processing...'; }
 
-        CodeParser.upload(file)
+        // Upload to process endpoint (doesn't save to disk)
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        fetch('/api/process-file', { method: 'POST', body: formData })
+            .then(res => res.json())
             .then(json => {
                 // Always visualize, even if there are errors
                 // The visualizer will show error indicators for compile/runtime errors
@@ -503,10 +622,54 @@ class CodeVisualizer {
                 //     return;
                 // }
                 this.visualize(json);
+                
+                // Update the file in the code files list
+                const codeFileList = document.getElementById('codeFileList');
+                if (codeFileList) {
+                    // Check if file already exists in the list
+                    let existingCheckbox = document.getElementById(`file-${filename}`);
+                    if (!existingCheckbox) {
+                        // Add new file to list
+                        const item = document.createElement('div');
+                        item.className = 'code-file-item';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = filename;
+                        checkbox.id = `file-${filename}`;
+                        checkbox.checked = true;
+                        
+                        const label = document.createElement('label');
+                        label.className = 'file-name';
+                        label.htmlFor = `file-${filename}`;
+                        label.textContent = filename;
+                        
+                        const editIcon = document.createElement('span');
+                        editIcon.className = 'edit-icon';
+                        editIcon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                        </svg>`;
+                        editIcon.title = 'Edit file';
+                        editIcon.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            // Reopen editor with updated code
+                            this._buildCodePanel(this._sourceCode);
+                        });
+                        
+                        item.appendChild(checkbox);
+                        item.appendChild(label);
+                        item.appendChild(editIcon);
+                        codeFileList.appendChild(item);
+                    } else {
+                        // Just check the existing checkbox
+                        existingCheckbox.checked = true;
+                    }
+                }
+                
+                // Keep the editor panel open (do not close)
             })
             .catch(err => {
-                console.error('Save failed:', err);
-                // Don't show alert, just log to console
+                console.error('Save & Run failed:', err);
             })
             .finally(() => {
                 if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save & Run'; }

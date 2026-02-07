@@ -1,0 +1,53 @@
+{
+  "success": true,
+  "metadata": {
+    "file_name": "code.c",
+    "file_path": "/srv/mosiacs/data/code.c",
+    "file_size": "51",
+    "file_mode": "-rwxrwxrwx",
+    "modified": "2026-02-07 19:45:59",
+    "accessed": "2026-02-07 19:45:59",
+    "created": "2026-02-07 19:45:59",
+    "language": "C",
+    "total_lines": "8",
+    "non_blank_lines": "4",
+    "num_includes": "0",
+    "num_comments": "0",
+    "num_functions": "1",
+    "function_names": "main",
+    "num_variables": "1",
+    "num_assignments": "0",
+    "num_calls": "0",
+    "num_returns": "1",
+    "num_loops": "0",
+    "num_branches": "0",
+    "max_nesting_depth": "1"
+  },
+  "traces": [
+    {
+      "type": "CALL",
+      "subject": "main",
+      "stack_depth": "1",
+      "id": 0
+    },
+    {
+      "type": "DECL",
+      "subject": "x",
+      "value": "9",
+      "address": "0x7ffe76621e8c",
+      "line_number": "2",
+      "stack_depth": "1",
+      "id": 1
+    },
+    {
+      "type": "RETURN",
+      "subtype": "x",
+      "value": "9",
+      "line_number": "6",
+      "stack_depth": "1",
+      "address": "0x7ffe76621e8c",
+      "id": 2
+    }
+  ],
+  "seed": 7060804141636088047
+}

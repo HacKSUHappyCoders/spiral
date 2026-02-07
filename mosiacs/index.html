@@ -19,18 +19,19 @@
         </div>
 
         <div>
-            <select id="traceFile" multiple size="4">
-                <option value="000013_c.json">000013.c (NEW)</option>
-                <option value="small_test_data.json">Small Test</option>
-                <option value="test_data.json">Test Data</option>
-                <option value="big_test_data.json">Big Test</option>
-            </select>
-            <button id="loadExample">Load Single</button>
-            <button id="loadMultiple">Load Multiple</button>
-            <input type="file" id="fileUpload" accept=".c,.py">
-            <button id="uploadBtn">Upload & Visualize</button>
+            <!-- Code Files Section -->
+            <label style="font-size: 0.85em; opacity: 0.8; margin-bottom: 0.2em; display: block;">Code Files</label>
+            <div id="codeFileList" class="code-file-list">
+                <!-- Populated dynamically -->
+            </div>
+            <button id="loadSelected">Load Selected</button>
+            
+            <!-- Upload Section -->
+            <input type="file" id="fileUpload" accept=".c,.py" style="display:none;">
+            <button id="uploadBtn">Upload Code</button>
+            
+            <!-- Other Controls -->
             <button id="resetCamera">Reset Camera</button>
-            <button id="collapseBuilding">Collapse Building</button>
             <button id="toggleInfo">Hide Controls</button>
             <button id="toggleAnimation">Pause Animation</button>
             <button id="returnToMainGalaxy" style="display:none;">⬅ Return to Main Galaxy</button>

@@ -49,5 +49,14 @@ function makeDraggable(panel, handleEl) {
         isDragging = false;
         handleEl.style.cursor = 'grab';
         handleEl.releasePointerCapture(e.pointerId);
+        
+        // Save position for code panel
+        if (panel.id === 'codePanel') {
+            const rect = panel.getBoundingClientRect();
+            window.codePanelPosition = {
+                left: rect.left,
+                top: rect.top
+            };
+        }
     });
 }

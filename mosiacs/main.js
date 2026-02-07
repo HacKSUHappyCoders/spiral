@@ -4,6 +4,13 @@
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
+    // Clear all cached code files on page load to start fresh
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('code_')) {
+            localStorage.removeItem(key);
+        }
+    });
+
     const canvas = document.getElementById('renderCanvas');
     const visualizer = new CodeVisualizer(canvas);
 
@@ -14,62 +21,186 @@ document.addEventListener('DOMContentLoaded', () => {
     makeDraggable(document.getElementById('controls'), document.getElementById('controls-handle'));
     makeDraggable(document.getElementById('info'), document.querySelector('#info > strong'));
 
-    const traceSelect = document.getElementById('traceFile');
+    const codeFileList = document.getElementById('codeFileList');
 
-    /** Load the currently selected trace file. */
-    function loadSelectedTrace() {
-        const filename = traceSelect ? traceSelect.value : undefined;
-        visualizer.setSourceCode(null); // No source code for example traces
-        CodeParser.getExampleTrace(filename)
-            .then(json => visualizer.visualize(json))
-            .catch(err => console.error('Failed to load trace data:', err));
+    // Populate code files dropdown dynamically
+    function populateCodeFiles() {
+        fetch('/api/codefiles')
+            .then(r => r.json())
+            .then(files => {
+                codeFileList.innerHTML = '';
+                files.forEach(f => {
+                    const item = document.createElement('div');
+                    item.className = 'code-file-item';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = f;
+                    checkbox.id = `file-${f}`;
+                    
+                    const label = document.createElement('label');
+                    label.className = 'file-name';
+                    label.htmlFor = `file-${f}`;
+                    label.textContent = f;
+                    
+                    const editIcon = document.createElement('span');
+                    editIcon.className = 'edit-icon';
+                    editIcon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>`;
+                    editIcon.title = 'Edit file';
+                    editIcon.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        loadAndEditFile(f);
+                    });
+                    
+                    item.appendChild(checkbox);
+                    item.appendChild(label);
+                    item.appendChild(editIcon);
+                    codeFileList.appendChild(item);
+                });
+            })
+            .catch(err => {
+                console.error('Failed to load code file list:', err);
+            });
     }
 
-    // Load trace data from the API on startup
-    loadSelectedTrace();
+    // Load a file and open it in the code editor
+    function loadAndEditFile(filename) {
+        // Check localStorage first
+        const cachedCode = localStorage.getItem(`code_${filename}`);
+        if (cachedCode) {
+            // Use cached version from localStorage
+            visualizer.setSourceCode(cachedCode);
+            visualizer.parser.metadata = { file_name: filename };
+            visualizer._buildCodePanel(cachedCode);
+            return;
+        }
+        
+        // Fetch the file content from the server with cache busting
+        fetch(`/data/${filename}?t=${Date.now()}`)
+            .then(r => {
+                if (!r.ok) throw new Error(`Failed to load ${filename}`);
+                return r.text();
+            })
+            .then(code => {
+                // Save to localStorage for this session
+                try {
+                    localStorage.setItem(`code_${filename}`, code);
+                } catch (err) {
+                    console.error('Failed to cache file in localStorage:', err);
+                }
+                
+                // Set the source code and show the editor
+                visualizer.setSourceCode(code);
+                // Manually create metadata for the editor
+                visualizer.parser.metadata = { file_name: filename };
+                visualizer._buildCodePanel(code);
+            })
+            .catch(err => {
+                alert(`Failed to load file: ${err.message}`);
+            });
+    }
 
-    // Load example button — loads the selected file from the dropdown
-    document.getElementById('loadExample').addEventListener('click', loadSelectedTrace);
+    // Initialize code files list
+    populateCodeFiles();
 
-    // Load multiple button — loads and merges multiple selected files
-    document.getElementById('loadMultiple').addEventListener('click', () => {
-        const selectedOptions = traceSelect ? Array.from(traceSelect.selectedOptions) : [];
-        const selectedFiles = selectedOptions.map(opt => opt.value);
+    // Load selected code files button — processes selected code files
+    document.getElementById('loadSelected').addEventListener('click', async () => {
+        const checkboxes = document.querySelectorAll('#codeFileList input[type="checkbox"]:checked');
+        const selectedFiles = Array.from(checkboxes).map(cb => cb.value);
 
         if (selectedFiles.length === 0) {
-            alert('Please select one or more trace files');
+            alert('Please select one or more code files');
             return;
         }
 
-        if (selectedFiles.length === 1) {
-            // Just load single file normally
-            loadSelectedTrace();
-            return;
+        const loadBtn = document.getElementById('loadSelected');
+        loadBtn.disabled = true;
+        loadBtn.textContent = 'Processing...';
+
+        try {
+            const results = [];
+            const errors = [];
+
+            // Process each file, checking localStorage first
+            for (const filename of selectedFiles) {
+                const cachedCode = localStorage.getItem(`code_${filename}`);
+                
+                if (cachedCode) {
+                    // Use cached version from localStorage
+                    const blob = new Blob([cachedCode], { type: 'text/plain' });
+                    const file = new File([blob], filename);
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        const response = await fetch('/api/process-file', { method: 'POST', body: formData });
+                        const json = await response.json();
+                        
+                        if (json.success !== false) {
+                            results.push({ file: filename, data: json });
+                        } else {
+                            errors.push({ file: filename, stage: 'processing', message: json.error?.message || 'Unknown error' });
+                        }
+                    } catch (err) {
+                        errors.push({ file: filename, stage: 'processing', message: err.message });
+                    }
+                } else {
+                    // No cached version, use backend file
+                    try {
+                        const response = await fetch('/api/process', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ files: [filename] })
+                        });
+                        const data = await response.json();
+                        
+                        if (data.success && data.results && data.results.length > 0) {
+                            results.push({ file: filename, data: data.results[0].data });
+                        } else if (data.errors && data.errors.length > 0) {
+                            errors.push(data.errors[0]);
+                        }
+                    } catch (err) {
+                        errors.push({ file: filename, stage: 'processing', message: err.message });
+                    }
+                }
+            }
+
+            // Show results
+            if (results.length > 0) {
+                const resultMsg = `Successfully processed ${results.length} file(s)`;
+                
+                if (errors.length > 0) {
+                    const errorDetails = errors.map(e => 
+                        `  • ${e.file}: [${e.stage}] ${e.message}`
+                    ).join('\n');
+                    alert(`${resultMsg}\n\nErrors:\n${errorDetails}`);
+                } else {
+                    console.log(resultMsg);
+                }
+
+                // Visualize the first successful result
+                visualizer.setSourceCode(null);
+                visualizer.visualize(results[0].data);
+            } else {
+                // All files failed
+                const errorDetails = errors.map(e => 
+                    `  • ${e.file}: [${e.stage}] ${e.message}`
+                ).join('\n');
+                alert(`Processing failed:\n\n${errorDetails}`);
+            }
+        } catch (err) {
+            alert('Processing failed: ' + err.message);
+        } finally {
+            loadBtn.disabled = false;
+            loadBtn.textContent = 'Load Selected';
         }
-
-        visualizer.setSourceCode(null); // No source code for example traces
-
-        // Load all selected files in parallel
-        Promise.all(selectedFiles.map(f => CodeParser.getExampleTrace(f)))
-            .then(jsons => {
-                // Merge the traces
-                const merged = CodeParser.mergeTraces(jsons);
-                visualizer.visualize(merged);
-            })
-            .catch(err => console.error('Failed to load multiple traces:', err));
     });
 
     // Reset camera button
     document.getElementById('resetCamera').addEventListener('click', () => {
         visualizer.resetCamera();
-    });
-
-    // Collapse/De-explode building button
-    document.getElementById('collapseBuilding').addEventListener('click', () => {
-        const wasCollapsed = visualizer.collapseExplodedBuilding();
-        if (!wasCollapsed) {
-            console.log('No building is currently exploded.');
-        }
     });
 
     // Return from galaxy warp button
@@ -103,15 +234,22 @@ document.addEventListener('DOMContentLoaded', () => {
         causalityBtn.textContent = isShowing ? '️ Hide Causality Web' : '️ Show Causality Web';
     });
 
-    // Upload file button
+    // Upload file button - opens file dialog
     const uploadBtn = document.getElementById('uploadBtn');
     const fileInput = document.getElementById('fileUpload');
+    
     uploadBtn.addEventListener('click', () => {
+        // Trigger the hidden file input
+        fileInput.click();
+    });
+
+    // Handle file selection
+    fileInput.addEventListener('change', () => {
         const file = fileInput.files[0];
         if (!file) {
-            console.warn('Please select a .c or .py file first.');
             return;
         }
+        
         uploadBtn.disabled = true;
         uploadBtn.textContent = 'Processing...';
 
@@ -120,16 +258,40 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(([sourceCode, json]) => {
                 visualizer.setSourceCode(sourceCode);
                 visualizer.visualize(json);
-                // Refresh the trace dropdown
-                return fetch('/api/traces').then(r => r.json()).then(files => {
-                    traceSelect.innerHTML = '';
-                    files.forEach(f => {
-                        const opt = document.createElement('option');
-                        opt.value = f;
-                        opt.textContent = f.replace('.json', '');
-                        traceSelect.appendChild(opt);
-                    });
+                
+                // Add the uploaded file to the code files list
+                const item = document.createElement('div');
+                item.className = 'code-file-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = file.name;
+                checkbox.id = `file-${file.name}`;
+                checkbox.checked = true;
+                
+                const label = document.createElement('label');
+                label.className = 'file-name';
+                label.htmlFor = `file-${file.name}`;
+                label.textContent = file.name;
+                
+                const editIcon = document.createElement('span');
+                editIcon.className = 'edit-icon';
+                editIcon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>`;
+                editIcon.title = 'Edit file';
+                editIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    loadAndEditFile(file.name);
                 });
+                
+                item.appendChild(checkbox);
+                item.appendChild(label);
+                item.appendChild(editIcon);
+                codeFileList.appendChild(item);
+                
+                // Clear the file input so the same file can be uploaded again
+                fileInput.value = '';
             })
             .catch(err => {
                 console.error('Upload failed:', err);
@@ -137,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .finally(() => {
                 uploadBtn.disabled = false;
-                uploadBtn.textContent = 'Upload & Visualize';
+                uploadBtn.textContent = 'Upload Code';
             });
     });
 

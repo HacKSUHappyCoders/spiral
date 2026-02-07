@@ -1,0 +1,311 @@
+{
+  "success": true,
+  "metadata": {
+    "file_name": "00001.c",
+    "file_path": "/tmp/tmp_8dy82m4/00001.c",
+    "file_size": "222",
+    "file_mode": "-rw-r--r--",
+    "modified": "2026-02-07 19:05:30",
+    "accessed": "2026-02-07 19:05:30",
+    "created": "2026-02-07 19:05:30",
+    "language": "C",
+    "total_lines": "19",
+    "non_blank_lines": "13",
+    "num_includes": "0",
+    "num_comments": "1",
+    "num_functions": "1",
+    "function_names": "main",
+    "num_variables": "2",
+    "num_assignments": "4",
+    "num_calls": "0",
+    "num_returns": "1",
+    "num_loops": "1",
+    "num_branches": "1",
+    "max_nesting_depth": "2"
+  },
+  "traces": [
+    {
+      "type": "CALL",
+      "subject": "main",
+      "stack_depth": "1",
+      "id": 0
+    },
+    {
+      "type": "DECL",
+      "subject": "sum",
+      "value": "0",
+      "address": "0x7ffee03d614c",
+      "line_number": "4",
+      "stack_depth": "1",
+      "id": 1
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "5",
+      "stack_depth": "1",
+      "condition": "i<5",
+      "condition_result": "1",
+      "id": 2
+    },
+    {
+      "type": "DECL",
+      "subject": "i",
+      "value": "0",
+      "address": "0x7ffee03d6148",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 3
+    },
+    {
+      "type": "READ",
+      "subject": "sum",
+      "format_spec": "0",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 4
+    },
+    {
+      "type": "READ",
+      "subject": "i",
+      "format_spec": "0",
+      "address": "0x7ffee03d6148",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 5
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "sum",
+      "value": "0",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 6
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "5",
+      "stack_depth": "1",
+      "condition": "i<5",
+      "condition_result": "1",
+      "id": 7
+    },
+    {
+      "type": "DECL",
+      "subject": "i",
+      "value": "1",
+      "address": "0x7ffee03d6148",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 8
+    },
+    {
+      "type": "READ",
+      "subject": "sum",
+      "format_spec": "0",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 9
+    },
+    {
+      "type": "READ",
+      "subject": "i",
+      "format_spec": "1",
+      "address": "0x7ffee03d6148",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 10
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "sum",
+      "value": "1",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 11
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "5",
+      "stack_depth": "1",
+      "condition": "i<5",
+      "condition_result": "1",
+      "id": 12
+    },
+    {
+      "type": "DECL",
+      "subject": "i",
+      "value": "2",
+      "address": "0x7ffee03d6148",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 13
+    },
+    {
+      "type": "READ",
+      "subject": "sum",
+      "format_spec": "1",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 14
+    },
+    {
+      "type": "READ",
+      "subject": "i",
+      "format_spec": "2",
+      "address": "0x7ffee03d6148",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 15
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "sum",
+      "value": "3",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 16
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "5",
+      "stack_depth": "1",
+      "condition": "i<5",
+      "condition_result": "1",
+      "id": 17
+    },
+    {
+      "type": "DECL",
+      "subject": "i",
+      "value": "3",
+      "address": "0x7ffee03d6148",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 18
+    },
+    {
+      "type": "READ",
+      "subject": "sum",
+      "format_spec": "3",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 19
+    },
+    {
+      "type": "READ",
+      "subject": "i",
+      "format_spec": "3",
+      "address": "0x7ffee03d6148",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 20
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "sum",
+      "value": "6",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 21
+    },
+    {
+      "type": "LOOP",
+      "subtype": "for",
+      "line_number": "5",
+      "stack_depth": "1",
+      "condition": "i<5",
+      "condition_result": "1",
+      "id": 22
+    },
+    {
+      "type": "DECL",
+      "subject": "i",
+      "value": "4",
+      "address": "0x7ffee03d6148",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 23
+    },
+    {
+      "type": "READ",
+      "subject": "sum",
+      "format_spec": "6",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 24
+    },
+    {
+      "type": "READ",
+      "subject": "i",
+      "format_spec": "4",
+      "address": "0x7ffee03d6148",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 25
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "sum",
+      "value": "10",
+      "address": "0x7ffee03d614c",
+      "line_number": "7",
+      "stack_depth": "1",
+      "id": 26
+    },
+    {
+      "type": "CONDITION",
+      "subject": "sum < 10",
+      "condition_result": "0",
+      "line_number": "10",
+      "stack_depth": "1",
+      "id": 27
+    },
+    {
+      "type": "BRANCH",
+      "subtype": "else",
+      "condition": "sum < 10",
+      "line_number": "10",
+      "stack_depth": "1",
+      "id": 28
+    },
+    {
+      "type": "READ",
+      "subject": "sum",
+      "format_spec": "10",
+      "address": "0x7ffee03d614c",
+      "line_number": "13",
+      "stack_depth": "1",
+      "id": 29
+    },
+    {
+      "type": "ASSIGN",
+      "subject": "sum",
+      "value": "11",
+      "address": "0x7ffee03d614c",
+      "line_number": "13",
+      "stack_depth": "1",
+      "id": 30
+    },
+    {
+      "type": "RETURN",
+      "subtype": "literal",
+      "value": "0",
+      "line_number": "17",
+      "stack_depth": "1",
+      "id": 31
+    }
+  ],
+  "seed": 52242310554629046670
+}
