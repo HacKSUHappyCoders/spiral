@@ -31,14 +31,6 @@ int factorial(int n) {
     return n * factorial(n - 1);
 }
 
-// Fibonacci with recursion
-int fibonacci(int n) {
-    if (n <= 1) {
-        return n;
-    }
-    return fibonacci(n - 1) + fibonacci(n - 2);
-}
-
 // Helper function that's called by other functions
 int multiply(int a, int b) {
     int result = 0;
@@ -114,21 +106,6 @@ int classify(int num) {
     } else {
         return 1;
     }
-}
-
-// Deep recursion function
-int deepRecursion(int depth, int value) {
-    if (depth <= 0) {
-        return value;
-    }
-    
-    int temp = value * 2;
-    
-    if (temp > 100) {
-        temp = temp - 50;
-    }
-    
-    return deepRecursion(depth - 1, temp);
 }
 
 // Function with complex nested conditionals
@@ -234,106 +211,117 @@ int multiParam(int a, int b, int c, int d, int e) {
 }
 
 int main() {
-    // External call to time
-    time_t current_time = time(NULL);
-    
-    // External call to printf
     printf("=== Combined Test: Internal, External, and Recursive Functions ===\n");
     
-    // Test internal function calls from 00013
+    // Mix of operations - not grouped by type
     int sum = add(5, 3);
-    int product = multiply(4, 7);
+    int matrix = sumMatrix(3);
+    printf("Sum: %d\n", sum);
     
-    printf("Sum: %d\n", sum);  // External call
-    printf("Product: %d\n", product);  // External call
-    
-    // Array operations with external and internal calls
+    // Array operations mixed with other calls
     int numbers[] = {10, 20, 30, 40, 50};
     int size = 5;
+    int cls = classify(-5);
     
     print_array(numbers, size);
+    printf("Classify(-5): %d\n", cls);
     
-    double avg = calculate_average(numbers, size);
-    printf("Average: %.2f\n", avg);  // External call
-    
-    // String operations with external functions
+    // String operations interspersed
     char str1[50] = "Hello";
+    int product = multiply(4, 7);
     char str2[50] = "World";
     
-    int len1 = strlen(str1);  // External call
+    printf("Product: %d\n", product);
+    int len1 = strlen(str1);
     printf("Length of '%s': %d\n", str1, len1);
     
-    char combined[100];
-    strcpy(combined, str1);  // External call
-    strcat(combined, " ");   // External call
-    strcat(combined, str2);  // External call
-    printf("Combined: %s\n", combined);
+    // Test mutual recursion early
+    int evenCheck = isEven(4);
     
-    // Math library external calls
+    char combined[100];
+    strcpy(combined, str1);
+    strcat(combined, " ");
+    strcat(combined, str2);
+    
+    int oddCheck = isOdd(3);
+    printf("Combined: %s\n", combined);
+    printf("Is 4 even? %d, Is 3 odd? %d\n", evenCheck, oddCheck);
+    
+    // Math operations scattered
     double x = 16.0;
-    double square_root = sqrt(x);  // External call
-    double pow_result = pow(2.0, 3.0);  // External call
+    int triple = tripleNested(2);
+    double square_root = sqrt(x);
     
     printf("Square root of %.0f: %.2f\n", x, square_root);
+    printf("Triple nested sum: %d\n", triple);
+    
+    // Random number and power mixed
+    int random_num = rand() % 100;
+    int pow_val = power(2, 3);
+    printf("Random number: %d\n", random_num);
+    printf("2^3 = %d\n", pow_val);
+    
+    // Average calculation
+    double avg = calculate_average(numbers, size);
+    double pow_result = pow(2.0, 3.0);
+    printf("Average: %.2f\n", avg);
     printf("2^3: %.0f\n", pow_result);
     
-    // Test message creation with malloc
+    // Message creation
     char* greeting = create_message("Developer");
-    printf("%s\n", greeting);  // External call
-    free(greeting);  // External call
+    int found = findFirst(3, 10);
+    printf("%s\n", greeting);
+    free(greeting);
+    printf("Find first result: %d\n", found);
     
-    // Random number generation
-    int random_num = rand() % 100;  // External call
-    printf("Random number: %d\n", random_num);
-    
-    // Recursive functions from 00004
-    int n = 5;
+    // Factorial and compute
+    int n = 3;
     int fact = factorial(n);
     printf("Factorial of %d: %d\n", n, fact);
     
-    int fib = fibonacci(6);
-    printf("Fibonacci(6): %d\n", fib);
-    
-    int pow_val = power(2, 3);
-    printf("2^3 = %d\n", pow_val);
-    
-    int matrix = sumMatrix(3);
-    printf("Sum of 3x3 matrix: %d\n", matrix);
-    
-    int cls = classify(-5);
-    printf("Classify(-5): %d\n", cls);
-    
-    int result = compute(4, 3);
-    printf("Compute(4, 3): %d\n", result);
-    
-    // Test mutual recursion
-    int evenCheck = isEven(10);
-    int oddCheck = isOdd(7);
-    printf("Is 10 even? %d, Is 7 odd? %d\n", evenCheck, oddCheck);
-    
-    // Test deep recursion
-    int deep = deepRecursion(5, 3);
-    printf("Deep recursion result: %d\n", deep);
-    
-    // Test complex logic
-    int complex = complexLogic(5, -3, 2);
-    printf("Complex logic result: %d\n", complex);
-    
-    // Test triple nested loops
-    int triple = tripleNested(2);
-    printf("Triple nested sum: %d\n", triple);
-    
-    // Test mixed loops
+    int result = compute(3, 2);
     int mixed = mixedLoops(3);
+    printf("Compute(3, 2): %d\n", result);
     printf("Mixed loops result: %d\n", mixed);
     
-    // Test early returns
-    int found = findFirst(3, 10);
-    printf("Find first result: %d\n", found);
-    
-    // Test multi-parameter function
+    // Complex logic and multi-param
+    int complex = complexLogic(5, -3, 2);
     int multi = multiParam(10, 2, 3, 4, 2);
+    printf("Complex logic result: %d\n", complex);
     printf("Multi-param result: %d\n", multi);
+    
+    // Time call at the end
+    time_t current_time = time(NULL);
+    
+    // Loop with break early
+    int check = 0;
+    while (1) {
+        check = check + 1;
+        if (check >= 5) {
+            break;
+        }
+        
+        if (check == 2) {
+            check = check + 1;
+        }
+    }
+    
+    // Nested internal calls
+    int nested_result = multiply(add(2, 3), add(4, 5));
+    printf("Nested internal calls: %d\n", nested_result);
+    
+    // While loop with complex condition
+    int counter = 0;
+    int limit = 10;
+    while (counter < limit && result < 1000) {
+        counter = counter + 1;
+        result = result + 2;
+        
+        if (counter > 5) {
+            int temp = counter * 2;
+            result = result - temp;
+        }
+    }
     
     // Nested loops with complex bodies
     for (int outer = 0; outer < 3; outer++) {
@@ -348,18 +336,10 @@ int main() {
         result = result + inner_sum;
     }
     
-    // While loop with complex condition
-    int counter = 0;
-    int limit = 10;
-    while (counter < limit && result < 1000) {
-        counter = counter + 1;
-        result = result + factorial(2);
-        
-        if (counter > 5) {
-            int temp = counter * 2;
-            result = result - temp;
-        }
-    }
+    // Final computation chain
+    int final = multiply(result, 2);
+    final = power(2, 4);
+    final = factorial(3);
     
     // Multiple levels of if-else
     if (result > 500) {
@@ -375,28 +355,6 @@ int main() {
             result = result + 100;
         }
     }
-    
-    // Nested internal and external calls
-    int nested_result = multiply(add(2, 3), add(4, 5));
-    printf("Nested internal calls: %d\n", nested_result);
-    
-    // Loop with break
-    int check = 0;
-    while (1) {
-        check = check + 1;
-        if (check >= 5) {
-            break;
-        }
-        
-        if (check == 2) {
-            check = check + 1;
-        }
-    }
-    
-    // Final computation chain
-    int final = multiply(result, 2);
-    final = power(2, 4);
-    final = factorial(5);
     
     printf("Final result: %d\n", result + final);
     
