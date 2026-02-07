@@ -3,17 +3,17 @@
  * CityRenderer — Translates WorldState snapshots into 3D Babylon.js meshes
  * arranged along a **descending spiral path**.
  *
- * Buildings represent persistent runtime concepts (AGENTS.md):
- *   Function Districts  → large landmark towers (height scales with stack depth)
- *   Variable Houses     → small houses with value displays
- *   Loop Factories      → industrial buildings with iteration counters
- *   Branch Intersections→ diamond decision-point structures
- *   Memory Nodes        → underground glowing connection lines
+ * Delegates mesh creation to MeshFactory and label management to LabelHelper.
+ * This class owns layout (spiral), render orchestration, hover interaction,
+ * memory lines, and per-frame state updates.
  */
 class CityRenderer {
-    constructor(scene, materialManager) {
+    constructor(scene) {
         this.scene = scene;
-        this.materialManager = materialManager;
+
+        // Helpers
+        this.labelHelper = new LabelHelper(scene);
+        this.meshFactory = new MeshFactory(scene, this.labelHelper);
 
         // Mesh caches:  entityKey → { mesh, extras… }
         this.functionMeshes = new Map();
@@ -35,16 +35,10 @@ class CityRenderer {
 
         // Hover label tracking
         this._hoveredLabel = null;
-        this._setupHoverObserver();
+        this._hoverAttached = false;
     }
 
     // ─── Hover observer — show/hide floating labels ────────────────
-
-    _setupHoverObserver() {
-        // Delayed — scene may not exist yet in constructor, so we
-        // attach on first render call instead.
-        this._hoverAttached = false;
-    }
 
     _ensureHoverObserver() {
         if (this._hoverAttached) return;
@@ -68,11 +62,9 @@ class CityRenderer {
                     entry.label.setEnabled(true);
                     this._hoveredLabel = entry.label;
                 }
-            } else {
-                if (this._hoveredLabel) {
-                    this._hoveredLabel.setEnabled(false);
-                    this._hoveredLabel = null;
-                }
+            } else if (this._hoveredLabel) {
+                this._hoveredLabel.setEnabled(false);
+                this._hoveredLabel = null;
             }
         });
     }
@@ -151,7 +143,7 @@ class CityRenderer {
         this._slotMap.clear();
     }
 
-    // ─── Spiral timeline tube ──────────────────────────────────────
+    // ─── Spiral tube ───────────────────────────────────────────────
 
     _renderSpiralPath() {
         if (this._spiralTube) { this._spiralTube.dispose(); this._spiralTube = null; }
@@ -172,6 +164,7 @@ class CityRenderer {
         mat.diffuseColor = new BABYLON.Color3(0.9, 0.8, 0.4);
         mat.alpha = 0.55;
         this._spiralTube.material = mat;
+        this._spiralTube.isPickable = false;
     }
 
     // ─── Reposition buildings to final spiral Y ──────────────────
@@ -278,8 +271,7 @@ class CityRenderer {
                 const pos = this._spiralPosition(slot);
                 this.functionMeshes.set(fn.key, this._createFunctionDistrict(fn, pos, slot));
             }
-            const isOnStack = callStack.includes(fn.key);
-            this._updateFunctionState(this.functionMeshes.get(fn.key), fn, isOnStack);
+            this._updateFunctionState(this.functionMeshes.get(fn.key), fn);
         });
         this.functionMeshes.forEach((entry, key) => {
             if (!activeKeys.has(key)) this._setInactive(entry);
@@ -313,12 +305,14 @@ class CityRenderer {
             r: Math.min(color.r * 1.5, 1), g: Math.min(color.g * 1.5, 1),
             b: Math.min(color.b * 1.5, 1), a: 0.9
         });
+        cap.isPickable = false;
 
         this._animateScaleIn(mesh);
         this._animateScaleIn(cap);
 
         const label = this._createFloatingLabel(`fnLabel_${fn.key}`, fn.name, pos.clone(), height + 0.5, color);
         label.setEnabled(false);
+        label.isPickable = false;
 
         mesh._buildingData = {
             step: fn.enterStep,
@@ -349,11 +343,10 @@ class CityRenderer {
         if (entry.mesh.material) entry.mesh.material.alpha = 0.85;
         if (entry.cap && entry.cap.material) entry.cap.material.alpha = 0.9;
         if (entry.mesh._buildingData) {
-            entry.mesh._buildingData.childSteps = this._fnChildSteps(fn);
+            entry.mesh._buildingData.childSteps = MeshFactory.fnChildSteps(fn);
         }
-        // Update label text
         if (fn.returnValue !== null && fn.returnValue !== undefined) {
-            this._updateLabelText(entry.label, `${fn.name} → ${fn.returnValue}`);
+            this.labelHelper.update(entry.label, `${fn.name} → ${fn.returnValue}`);
         }
     }
 
@@ -401,6 +394,7 @@ class CityRenderer {
             r: Math.min(color.r * 1.4, 1), g: Math.min(color.g * 1.4, 1),
             b: Math.min(color.b * 1.4, 1), a: 0.9
         });
+        roof.isPickable = false;
 
         this._animateScaleIn(mesh);
         this._animateScaleIn(roof);
@@ -408,6 +402,7 @@ class CityRenderer {
         const labelText = `${v.name} = ${v.currentValue}`;
         const label = this._createFloatingLabel(`varLabel_${v.key}`, labelText, pos.clone(), height + 1.3, color);
         label.setEnabled(false);
+        label.isPickable = false;
 
         mesh._buildingData = {
             step: v.declStep,
@@ -439,11 +434,11 @@ class CityRenderer {
         }
         if (entry.roof && entry.roof.material) entry.roof.material.alpha = 0.9;
         if (entry.mesh._buildingData) {
-            entry.mesh._buildingData.childSteps = this._varChildSteps(v);
+            entry.mesh._buildingData.childSteps = MeshFactory.varChildSteps(v);
             entry.mesh._buildingData.stepData.value = v.currentValue;
         }
         if (entry.label) {
-            this._updateLabelText(entry.label, `${v.name} = ${v.currentValue}`);
+            this.labelHelper.update(entry.label, `${v.name} = ${v.currentValue}`);
         }
     }
 
@@ -489,6 +484,7 @@ class CityRenderer {
         chimney.position.z += 0.7 * Math.sin(tangentAngle);
         chimney.material = this._glowMaterial(`loopChimneyMat_${loop.key}`,
             { r: 0.4, g: 0.15, b: 0.6, a: 0.9 });
+        chimney.isPickable = false;
 
         this._animateScaleIn(mesh);
         this._animateScaleIn(chimney);
@@ -496,6 +492,7 @@ class CityRenderer {
         const labelText = `${loop.subtype.toUpperCase()} (${loop.condition}) ×${loop.iterations}`;
         const label = this._createFloatingLabel(`loopLabel_${loop.key}`, labelText, pos.clone(), height + 2, color);
         label.setEnabled(false);
+        label.isPickable = false;
 
         mesh._buildingData = {
             step: loop.steps[0] || 0,
@@ -527,10 +524,10 @@ class CityRenderer {
         }
         if (entry.chimney && entry.chimney.material) entry.chimney.material.alpha = 0.9;
         if (entry.mesh._buildingData) {
-            entry.mesh._buildingData.childSteps = this._loopChildSteps(loop);
+            entry.mesh._buildingData.childSteps = MeshFactory.loopChildSteps(loop);
         }
         if (entry.label) {
-            this._updateLabelText(entry.label, `${loop.subtype.toUpperCase()} (${loop.condition}) ×${loop.iterations}`);
+            this.labelHelper.update(entry.label, `${loop.subtype.toUpperCase()} (${loop.condition}) ×${loop.iterations}`);
         }
     }
 
@@ -571,12 +568,15 @@ class CityRenderer {
 
         const truePath = this._createPathIndicator(`brTrue_${br.key}`, pos, 1.6, tangentAngle + Math.PI / 6, true);
         const falsePath = this._createPathIndicator(`brFalse_${br.key}`, pos, 1.6, tangentAngle - Math.PI / 6, false);
+        truePath.isPickable = false;
+        falsePath.isPickable = false;
 
         this._animateScaleIn(mesh);
 
         const labelText = `IF (${br.condition}) → ${br.result ? 'true' : 'false'}`;
         const label = this._createFloatingLabel(`brLabel_${br.key}`, labelText, pos.clone(), height + 1, color);
         label.setEnabled(false);
+        label.isPickable = false;
 
         mesh._buildingData = {
             step: br.step,
@@ -618,7 +618,7 @@ class CityRenderer {
         if (entry.falsePath && entry.falsePath.material)
             entry.falsePath.material.alpha = 0.9;
         if (entry.label) {
-            this._updateLabelText(entry.label, `IF (${br.condition}) → ${br.result ? 'true' : 'false'}`);
+            this.labelHelper.update(entry.label, `IF (${br.condition}) → ${br.result ? 'true' : 'false'}`);
         }
     }
 
@@ -647,129 +647,16 @@ class CityRenderer {
                 mat.emissiveColor = new BABYLON.Color3(0.3, 0.8, 0.3);
                 mat.alpha = 0.4;
                 line.material = mat;
+                line.isPickable = false;
                 this.memoryLines.push(line);
             }
         });
     }
 
-    // ─── Material helper (brighter emissive) ────────────────────────
-
-    /**
-     * Create a stained-glass material with strong emissive glow so
-     * buildings are always well-lit regardless of camera angle.
-     */
-    _glowMaterial(name, color) {
-        const mat = new BABYLON.StandardMaterial(name, this.scene);
-        mat.diffuseColor = new BABYLON.Color3(color.r, color.g, color.b);
-        mat.emissiveColor = new BABYLON.Color3(color.r * 0.45, color.g * 0.45, color.b * 0.45);
-        mat.specularColor = new BABYLON.Color3(0.6, 0.6, 0.6);
-        mat.specularPower = 32;
-        mat.alpha = color.a !== undefined ? color.a : 0.85;
-        return mat;
-    }
-
     // ─── Shared helpers ────────────────────────────────────────────
-
-
-    _createFloatingLabel(name, text, pos, yOffset, color, scale) {
-        scale = scale || 1;
-        const planeSize = 3 * scale;
-        const plane = BABYLON.MeshBuilder.CreatePlane(name, { width: planeSize, height: planeSize * 0.5 }, this.scene);
-        plane.position = pos.clone();
-        plane.position.y += yOffset;
-        plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
-
-        const mat = new BABYLON.StandardMaterial(name + '_mat', this.scene);
-        const texW = 512;
-        const texH = 256;
-        const dynTex = new BABYLON.DynamicTexture(name + '_tex', { width: texW, height: texH }, this.scene, false);
-        const ctx = dynTex.getContext();
-
-        ctx.fillStyle = `rgba(${Math.floor(color.r * 200)}, ${Math.floor(color.g * 200)}, ${Math.floor(color.b * 200)}, 0.75)`;
-        ctx.fillRect(0, 0, texW, texH);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(4, 4, texW - 8, texH - 8);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 36px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        const words = text.split(' ');
-        const lines = [];
-        let cur = '';
-        words.forEach(w => {
-            const test = cur ? cur + ' ' + w : w;
-            if (ctx.measureText(test).width > texW - 40 && cur) { lines.push(cur); cur = w; }
-            else cur = test;
-        });
-        if (cur) lines.push(cur);
-        const lineH = 42;
-        const startY = texH / 2 - ((lines.length - 1) * lineH) / 2;
-        lines.forEach((line, i) => ctx.fillText(line, texW / 2, startY + i * lineH));
-
-        dynTex.update();
-        mat.diffuseTexture = dynTex;
-        mat.emissiveColor = new BABYLON.Color3(color.r * 0.2, color.g * 0.2, color.b * 0.2);
-        mat.alpha = color.a || 0.85;
-        mat.backFaceCulling = false;
-        plane.material = mat;
-
-        plane._dynTex = dynTex;
-        plane._labelColor = color;
-        return plane;
-    }
-
-    _updateLabelText(plane, text) {
-        if (!plane || !plane._dynTex) return;
-        const dynTex = plane._dynTex;
-        const color = plane._labelColor;
-        const ctx = dynTex.getContext();
-        const texW = 512;
-        const texH = 256;
-
-        ctx.clearRect(0, 0, texW, texH);
-        ctx.fillStyle = `rgba(${Math.floor(color.r * 200)}, ${Math.floor(color.g * 200)}, ${Math.floor(color.b * 200)}, 0.75)`;
-        ctx.fillRect(0, 0, texW, texH);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(4, 4, texW - 8, texH - 8);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 36px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        const words = text.split(' ');
-        const lines = [];
-        let cur = '';
-        words.forEach(w => {
-            const test = cur ? cur + ' ' + w : w;
-            if (ctx.measureText(test).width > texW - 40 && cur) { lines.push(cur); cur = w; }
-            else cur = test;
-        });
-        if (cur) lines.push(cur);
-        const lineH = 42;
-        const startY = texH / 2 - ((lines.length - 1) * lineH) / 2;
-        lines.forEach((line, i) => ctx.fillText(line, texW / 2, startY + i * lineH));
-
-        dynTex.update();
-    }
-
-    _animateScaleIn(mesh) {
-        if (!mesh) return;
-        mesh.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
-        BABYLON.Animation.CreateAndStartAnimation(
-            `scaleIn_${mesh.name}`, mesh, 'scaling',
-            60, 30,
-            new BABYLON.Vector3(0.01, 0.01, 0.01),
-            new BABYLON.Vector3(1, 1, 1),
-            BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-        );
-    }
 
     _setInactive(entry) {
         if (!entry) return;
-        // All buildings stay fully lit — no dimming
         if (entry.mesh && entry.mesh.material) entry.mesh.material.alpha = 0.85;
         if (entry.cap && entry.cap.material) entry.cap.material.alpha = 0.9;
         if (entry.roof && entry.roof.material) entry.roof.material.alpha = 0.9;
@@ -787,5 +674,19 @@ class CityRenderer {
                 entry[k].dispose();
             }
         });
+    }
+
+    // ─── Delegates to MeshFactory / LabelHelper ────────────────────
+
+    _glowMaterial(name, color) {
+        return this.meshFactory.glowMaterial(name, color);
+    }
+
+    _animateScaleIn(mesh) {
+        this.meshFactory.animateScaleIn(mesh);
+    }
+
+    _createFloatingLabel(name, text, pos, yOffset, color, scale) {
+        return this.labelHelper.create(name, text, pos, yOffset, color, scale);
     }
 }

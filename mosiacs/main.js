@@ -46,6 +46,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show welcome message
     console.log('🎨 Code Mosaic Visualizer initialized!');
     console.log('Click "Load Example Code" to see the visualization.');
-    console.log('Click any building to explode and see variable data.');
-    console.log('Debug Column Mode is ON by default - shards will fly to the side of your screen!');
+    console.log('Click any building to inspect its data.');
 });
