@@ -76,6 +76,10 @@ class ExplodeManager {
         const centerPos = buildingMesh.position.clone();
         const height = buildingMesh._trapHeight || 2;
 
+        // Calculate camera view position BEFORE creating shards
+        // so we know which direction the shards should face
+        const cameraViewInfo = this._calculateCameraViewPosition(centerPos, height, this._calculateTotalShards(childSteps.length));
+
         // Hide the original building + cap
         buildingMesh.setEnabled(false);
         if (buildingData.capMesh) buildingData.capMesh.setEnabled(false);
@@ -93,7 +97,8 @@ class ExplodeManager {
             height,
             buildingData.color,
             true,
-            0  // layer
+            0,  // layer
+            cameraViewInfo.direction  // face camera
         );
         shards.push(headerShard);
 
@@ -113,7 +118,8 @@ class ExplodeManager {
                 height,
                 this._colorForChild(child),
                 false,
-                0  // inner layer
+                0,  // inner layer
+                cameraViewInfo.direction
             );
             shards.push(mainShard);
 
@@ -128,7 +134,8 @@ class ExplodeManager {
                     height,
                     this._colorForChild(child),
                     false,
-                    1  // middle layer
+                    1,  // middle layer
+                    cameraViewInfo.direction
                 );
                 shards.push(addrShard);
             }
@@ -144,7 +151,8 @@ class ExplodeManager {
                     height,
                     { ...this._colorForChild(child), a: 0.7 },
                     false,
-                    2  // outer layer
+                    2,  // outer layer
+                    cameraViewInfo.direction
                 );
                 shards.push(lineShard);
             }
@@ -161,7 +169,8 @@ class ExplodeManager {
                 height,
                 { r: 0.5, g: 0.5, b: 0.5, a: 0.7 },
                 false,
-                0
+                0,
+                cameraViewInfo.direction
             );
             shards.push(empty);
         }
@@ -169,8 +178,8 @@ class ExplodeManager {
         // ── Animate shards outward then freeze ──────────────────────────
         this._animateShardsOut(shards);
 
-        // ── Move camera right in front of the shattered building ────────
-        this._saveCameraAndMoveToFront(centerPos, height, shards.length);
+        // ── Move camera to front of the shattered building ─────────────
+        this._saveCameraAndMoveToFront(centerPos, height, shards.length, cameraViewInfo);
 
         this.exploded = {
             mesh: buildingMesh,
@@ -201,8 +210,9 @@ class ExplodeManager {
      * @param {object}  color       - {r, g, b, a}
      * @param {boolean} isHeader
      * @param {number}  layer       - 0=inner, 1=middle, 2=outer (for multi-ring explosion)
+     * @param {Vector3} cameraDir   - direction from building to camera (for orientation)
      */
-    _createShard(name, label, center, index, total, buildingH, color, isHeader, layer) {
+    _createShard(name, label, center, index, total, buildingH, color, isHeader, layer, cameraDir) {
         // Shard dimensions - vary slightly by layer for depth effect
         const w = isHeader ? 2.5 : (1.5 - layer * 0.15);
         const h = isHeader ? 1.2 : (0.8 - layer * 0.1);
@@ -233,16 +243,16 @@ class ExplodeManager {
         // Store final target for animation
         shard._targetPos = new BABYLON.Vector3(tx, ty, tz);
 
-        // Make shard face outward from center
-        shard.lookAt(new BABYLON.Vector3(
-            center.x + Math.cos(angle) * 100,
-            ty,
-            center.z + Math.sin(angle) * 100
-        ));
+        // ── Make shard face the CAMERA direction, not outward from center ──
+        // All shards should face toward where the camera will be positioned
+        // so the user can read them all clearly
+        const lookAtTarget = center.clone().add(cameraDir.scale(100));
+        shard.lookAt(lookAtTarget);
 
-        // Random slight tilt for a "shattered" feel - more chaotic on outer layers
-        shard.rotation.x += (Math.random() - 0.5) * (0.35 + layer * 0.15);
-        shard.rotation.z += (Math.random() - 0.5) * (0.25 + layer * 0.1);
+        // Add slight random tilt for a "shattered" feel - more chaotic on outer layers
+        // But keep it subtle so text remains readable
+        shard.rotation.x += (Math.random() - 0.5) * (0.15 + layer * 0.08);
+        shard.rotation.z += (Math.random() - 0.5) * (0.1 + layer * 0.05);
 
         // ── material with dynamic texture label ─────────────────────
         const mat = new BABYLON.StandardMaterial(name + '_mat', this.scene);
@@ -365,10 +375,42 @@ class ExplodeManager {
     // ─── camera helpers ─────────────────────────────────────────────────
 
     /**
+     * Calculate the optimal camera position to view the shattered building.
+     * Returns position and direction vector.
+     */
+    _calculateCameraViewPosition(center, buildingHeight, shardCount) {
+        // Distance from center - CLOSER than before for zoom-in effect
+        // Base distance + scaling with shard count, but keeping it intimate
+        const viewDistance = 8 + (shardCount * 0.15); // Reduced from 12 + 0.3
+        
+        // Position camera at an angle that gives a good 3/4 view
+        // Offset in X and Z, elevated in Y
+        const offsetAngle = Math.PI / 4; // 45 degrees
+        const offsetX = Math.cos(offsetAngle) * viewDistance;
+        const offsetZ = Math.sin(offsetAngle) * viewDistance;
+        const offsetY = buildingHeight * 0.6; // closer to center height
+        
+        const cameraPosition = new BABYLON.Vector3(
+            center.x + offsetX,
+            center.y + buildingHeight * 0.5 + offsetY,
+            center.z + offsetZ
+        );
+        
+        // Direction vector from building to camera (normalized)
+        const direction = cameraPosition.subtract(center).normalize();
+        
+        return {
+            position: cameraPosition,
+            direction: direction,
+            distance: viewDistance
+        };
+    }
+
+    /**
      * Move camera directly in front of the shattered building for a close-up view.
      * Save the current camera state so we can restore it on collapse.
      */
-    _saveCameraAndMoveToFront(center, buildingHeight, shardCount) {
+    _saveCameraAndMoveToFront(center, buildingHeight, shardCount, cameraViewInfo) {
         // Save current camera state
         this.savedCamera = {
             target: this.camera.target.clone(),
@@ -378,47 +420,49 @@ class ExplodeManager {
             position: this.camera.position.clone()
         };
 
-        // Calculate a good viewing position:
-        // Position the camera in front of the building at an optimal distance
-        // to see all the shattered pieces clearly
-        
-        // Distance from center depends on how many shards (more shards = further back)
-        const viewDistance = 12 + (shardCount * 0.3);
-        
-        // Target: slightly above center of the building
+        // Target: center of the building (slightly elevated)
         const targetPos = center.clone();
         targetPos.y += buildingHeight * 0.5;
 
-        // Camera position: in front and slightly above
-        // We'll use alpha and beta to position it nicely
-        const targetAlpha = Math.PI / 2;  // facing along one axis
-        const targetBeta = Math.PI / 3;   // angled down slightly to see the spread
+        // Use the pre-calculated camera position
+        const newCameraPos = cameraViewInfo.position;
+        
+        // Calculate spherical coordinates for the new position relative to target
+        const dirToTarget = targetPos.subtract(newCameraPos);
+        const distance = dirToTarget.length();
+        
+        // Convert to spherical: alpha (horizontal angle), beta (vertical angle), radius
+        const targetAlpha = Math.atan2(dirToTarget.x, dirToTarget.z);
+        const targetBeta = Math.acos(dirToTarget.y / distance);
+        const targetRadius = distance;
 
-        // Animate camera to new position
+        // Animate camera to new position using spherical coordinates
+        const animDuration = 50;
+        
         BABYLON.Animation.CreateAndStartAnimation(
             'camRadius', this.camera, 'radius',
-            60, 40,
-            this.camera.radius, viewDistance,
+            60, animDuration,
+            this.camera.radius, targetRadius,
             BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
         );
 
         BABYLON.Animation.CreateAndStartAnimation(
             'camAlpha', this.camera, 'alpha',
-            60, 40,
+            60, animDuration,
             this.camera.alpha, targetAlpha,
             BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
         );
 
         BABYLON.Animation.CreateAndStartAnimation(
             'camBeta', this.camera, 'beta',
-            60, 40,
+            60, animDuration,
             this.camera.beta, targetBeta,
             BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
         );
 
         BABYLON.Animation.CreateAndStartAnimation(
             'camTarget', this.camera, 'target',
-            60, 40,
+            60, animDuration,
             this.camera.target.clone(), targetPos,
             BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
         );
@@ -427,31 +471,33 @@ class ExplodeManager {
     _restoreCamera() {
         if (!this.savedCamera) return;
 
+        const animDuration = 50;
+
         // Restore all camera properties
         BABYLON.Animation.CreateAndStartAnimation(
             'camRadiusRestore', this.camera, 'radius',
-            60, 40,
+            60, animDuration,
             this.camera.radius, this.savedCamera.radius,
             BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
         );
         
         BABYLON.Animation.CreateAndStartAnimation(
             'camAlphaRestore', this.camera, 'alpha',
-            60, 40,
+            60, animDuration,
             this.camera.alpha, this.savedCamera.alpha,
             BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
         );
         
         BABYLON.Animation.CreateAndStartAnimation(
             'camBetaRestore', this.camera, 'beta',
-            60, 40,
+            60, animDuration,
             this.camera.beta, this.savedCamera.beta,
             BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
         );
         
         BABYLON.Animation.CreateAndStartAnimation(
             'camTargetRestore', this.camera, 'target',
-            60, 40,
+            60, animDuration,
             this.camera.target.clone(), this.savedCamera.target,
             BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
         );
@@ -460,6 +506,18 @@ class ExplodeManager {
     }
 
     // ─── collapse ───────────────────────────────────────────────────────
+
+    /**
+     * Public method to collapse any currently exploded building.
+     * Can be called from UI button or internally.
+     */
+    collapseIfExploded() {
+        if (this.exploded) {
+            this._collapse();
+            return true;
+        }
+        return false;
+    }
 
     _collapse() {
         if (!this.exploded) return;

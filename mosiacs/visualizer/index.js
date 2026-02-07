@@ -166,6 +166,13 @@ class CodeVisualizer {
     }
 
     /**
+     * Collapse any currently exploded building and restore camera
+     */
+    collapseExplodedBuilding() {
+        return this.explodeManager.collapseIfExploded();
+    }
+
+    /**
      * Toggle animation
      */
     toggleAnimation() {

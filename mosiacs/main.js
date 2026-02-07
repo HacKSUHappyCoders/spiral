@@ -25,6 +25,14 @@ document.addEventListener('DOMContentLoaded', () => {
         visualizer.resetCamera();
     });
 
+    // Collapse/De-explode building button
+    document.getElementById('collapseBuilding').addEventListener('click', () => {
+        const wasCollapsed = visualizer.collapseExplodedBuilding();
+        if (!wasCollapsed) {
+            console.log('No building is currently exploded.');
+        }
+    });
+
     // Toggle animation button
     const toggleBtn = document.getElementById('toggleAnimation');
     toggleBtn.addEventListener('click', () => {
