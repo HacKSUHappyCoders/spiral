@@ -1,17 +1,15 @@
 /**
- * WorldState — The runtime simulation state engine.
+ * WorldState — The runtime simulation state engine (Phase 2).
  *
- * Maintains the full state of the "city" at any point in time.
- * The trace is replayed step-by-step; each step mutates the world
- * deterministically.  Moving backward simply rebuilds from scratch
- * up to the target step (immutable snapshots could be added later).
+ * Building creation rules:
+ *   Functions  – new building per invocation (unique key per CALL)
+ *   Variables  – new building per DECL (reuses if same scope+name+addr is still active)
+ *   For loops  – new building on first iteration of each loop run
+ *   While loops– same as for loops (new building type)
+ *   If/Branch  – building per CONDITION; if/elif/else chain linked together
  *
- * Entities tracked:
- *   • functionDistricts  – keyed by (name + depth), created on CALL, closed on RETURN
- *   • variableHouses     – keyed by (scope + name + address), created on DECL, updated on ASSIGN
- *   • loopFactories      – keyed by (scope + line + condition), created on first LOOP
- *   • branchIntersections – keyed by (scope + line + condition), created on CONDITION
- *   • memoryNodes         – keyed by address, shared across variables
+ * Each "container" building (function, for, while, if) records which
+ * trace-step range it owns, so the renderer can spawn sub-spirals.
  */
 class WorldState {
     constructor() {
@@ -19,61 +17,56 @@ class WorldState {
         this.currentStep = -1;
 
         // Persistent entities
-        this.functionDistricts = new Map();   // key → { name, depth, enterStep, exitStep, active, localVars:[], returnValue }
-        this.variableHouses = new Map();       // key → { name, address, scope, values:[], currentValue, lastWriter, declStep, active }
-        this.loopFactories = new Map();        // key → { subtype, condition, iterations, active, running, steps:[] }
-        this.branchIntersections = new Map();   // key → { condition, result, chosenBranch, active, step }
-        this.memoryNodes = new Map();           // address → { address, variables: Set of house keys }
+        this.functionDistricts = new Map();
+        this.variableHouses = new Map();
+        this.forLoopFactories = new Map();
+        this.whileLoopFactories = new Map();
+        this.branchIntersections = new Map();
+        this.memoryNodes = new Map();
 
-        // Call stack — tracks the nesting of function calls
-        this.callStack = [];                   // array of district keys
+        // Invocation counters for unique keys
+        this._fnCallCount = new Map();
+        this._forLoopCount = new Map();
+        this._whileLoopCount = new Map();
+        this._condCount = new Map();
 
-        // All steps processed so far (for UI labelling)
+        // Call stack
+        this.callStack = [];
+
+        // Track "active" containers for sub-step recording
+        this._containerStack = [];
+
         this.processedSteps = [];
     }
 
-    /**
-     * Load a parsed trace array (from CodeParser.parse()).
-     */
     loadTrace(trace) {
         this.trace = trace;
         this.reset();
     }
 
-    /**
-     * Reset the world to time = -1 (nothing has happened yet).
-     */
     reset() {
         this.currentStep = -1;
         this.functionDistricts.clear();
         this.variableHouses.clear();
-        this.loopFactories.clear();
+        this.forLoopFactories.clear();
+        this.whileLoopFactories.clear();
         this.branchIntersections.clear();
         this.memoryNodes.clear();
+        this._fnCallCount.clear();
+        this._forLoopCount.clear();
+        this._whileLoopCount.clear();
+        this._condCount.clear();
         this.callStack = [];
+        this._containerStack = [];
         this.processedSteps = [];
     }
 
-    /**
-     * Advance the world to the given step index (inclusive).
-     * If targetStep < currentStep we rebuild from scratch.
-     */
     seekTo(targetStep) {
         targetStep = Math.max(-1, Math.min(targetStep, this.trace.length - 1));
-
-        if (targetStep < this.currentStep) {
-            // Rewind: rebuild from start
-            this.reset();
-        }
-
-        while (this.currentStep < targetStep) {
-            this._applyStep(this.currentStep + 1);
-        }
+        if (targetStep < this.currentStep) this.reset();
+        while (this.currentStep < targetStep) this._applyStep(this.currentStep + 1);
     }
 
-    /**
-     * Get the current scope name (top of call stack, or "global").
-     */
     currentScope() {
         return this.callStack.length > 0
             ? this.callStack[this.callStack.length - 1]
@@ -87,6 +80,11 @@ class WorldState {
         this.currentStep = index;
         this.processedSteps.push(step);
 
+        // Record this step index on all open containers
+        for (const c of this._containerStack) {
+            c.children.push(index);
+        }
+
         switch (step.type) {
             case 'CALL':      this._handleCall(step); break;
             case 'RETURN':    this._handleReturn(step); break;
@@ -98,29 +96,40 @@ class WorldState {
         }
     }
 
-    // ─── CALL ──────────────────────────────────────────────────────
+    // ─── helpers ───────────────────────────────────────────────────
+
+    _nextCount(map, base) {
+        const n = (map.get(base) || 0) + 1;
+        map.set(base, n);
+        return n;
+    }
+
+    // ─── CALL — new building per invocation ────────────────────────
 
     _handleCall(step) {
-        const key = `fn_${step.name}_d${step.depth}`;
-        if (!this.functionDistricts.has(key)) {
-            this.functionDistricts.set(key, {
-                key,
-                name: step.name,
-                depth: step.depth,
-                enterStep: this.currentStep,
-                exitStep: null,
-                active: true,
-                localVars: [],
-                returnValue: null
-            });
-        } else {
-            const d = this.functionDistricts.get(key);
-            d.active = true;
-            d.enterStep = this.currentStep;
-            d.exitStep = null;
-            d.returnValue = null;
-        }
+        const n = this._nextCount(this._fnCallCount, step.name);
+        const key = `fn_${step.name}_#${n}`;
+
+        this.functionDistricts.set(key, {
+            key,
+            name: step.name,
+            depth: step.depth,
+            invocation: n,
+            enterStep: this.currentStep,
+            exitStep: null,
+            active: true,
+            localVars: [],
+            returnValue: null,
+            childStepIndices: []
+        });
+
         this.callStack.push(key);
+        this._containerStack.push({
+            key, type: 'function',
+            startStep: this.currentStep,
+            endStep: null,
+            children: this.functionDistricts.get(key).childStepIndices
+        });
     }
 
     // ─── RETURN ────────────────────────────────────────────────────
@@ -136,22 +145,45 @@ class WorldState {
             d.active = false;
             d.returnValue = step.value;
 
-            // Deactivate local variables
             d.localVars.forEach(vk => {
                 const house = this.variableHouses.get(vk);
                 if (house) house.active = false;
             });
         }
+
         this.callStack.pop();
+
+        // Pop the matching container
+        for (let i = this._containerStack.length - 1; i >= 0; i--) {
+            if (this._containerStack[i].key === key) {
+                this._containerStack[i].endStep = this.currentStep;
+                this._containerStack.splice(i, 1);
+                break;
+            }
+        }
     }
 
     // ─── DECL ──────────────────────────────────────────────────────
 
     _handleDecl(step) {
         const scope = this.currentScope();
-        const key = `var_${scope}_${step.name}_${step.address}`;
 
-        if (!this.variableHouses.has(key)) {
+        // Reuse existing active house for same scope+name+address
+        let existingKey = null;
+        for (const [k, v] of this.variableHouses) {
+            if (v.scope === scope && v.name === step.name && v.address === step.address && v.active) {
+                existingKey = k;
+                break;
+            }
+        }
+
+        if (existingKey) {
+            const house = this.variableHouses.get(existingKey);
+            house.values.push({ value: step.value, step: this.currentStep });
+            house.currentValue = step.value;
+            house.lastWriter = this.currentStep;
+        } else {
+            const key = `var_${scope}_${step.name}_${step.address}_s${this.currentStep}`;
             this.variableHouses.set(key, {
                 key,
                 name: step.name,
@@ -163,85 +195,104 @@ class WorldState {
                 declStep: this.currentStep,
                 active: true
             });
-        } else {
-            // Re-declaration (e.g. loop variable in new iteration)
-            const house = this.variableHouses.get(key);
-            house.active = true;
-            house.values.push({ value: step.value, step: this.currentStep });
-            house.currentValue = step.value;
-            house.lastWriter = this.currentStep;
-        }
 
-        // Register with parent function district
-        const fnKey = this.callStack.length > 0
-            ? this.callStack[this.callStack.length - 1]
-            : null;
-        if (fnKey && this.functionDistricts.has(fnKey)) {
-            const d = this.functionDistricts.get(fnKey);
-            if (!d.localVars.includes(key)) d.localVars.push(key);
-        }
+            const fnKey = this.callStack.length > 0
+                ? this.callStack[this.callStack.length - 1]
+                : null;
+            if (fnKey && this.functionDistricts.has(fnKey)) {
+                const d = this.functionDistricts.get(fnKey);
+                if (!d.localVars.includes(key)) d.localVars.push(key);
+            }
 
-        // Register in memory layer
-        this._registerMemoryNode(step.address, key);
+            this._registerMemoryNode(step.address, key);
+        }
     }
 
     // ─── ASSIGN ────────────────────────────────────────────────────
 
     _handleAssign(step) {
         const scope = this.currentScope();
-        // Find the house — try current scope first, then any scope with same name+address
-        let key = `var_${scope}_${step.name}_${step.address}`;
-        if (!this.variableHouses.has(key)) {
-            // Try to find by address
-            for (const [k, v] of this.variableHouses) {
-                if (v.name === step.name && v.address === step.address) {
-                    key = k;
-                    break;
-                }
+        let house = null;
+        for (const [, v] of this.variableHouses) {
+            if (v.name === step.name && v.address === step.address && v.active) {
+                house = v;
+                if (v.scope === scope) break;
             }
         }
 
-        if (this.variableHouses.has(key)) {
-            const house = this.variableHouses.get(key);
+        if (house) {
             house.values.push({ value: step.value, step: this.currentStep });
             house.currentValue = step.value;
             house.lastWriter = this.currentStep;
-        }
-        // If we still don't have a house, the assign references an undeclared variable
-        // — in that case, create one implicitly
-        else {
+        } else {
             this._handleDecl({ ...step, type: 'DECL' });
         }
     }
 
-    // ─── LOOP ──────────────────────────────────────────────────────
+    // ─── LOOP — for vs while, new building on first iteration ──────
 
     _handleLoop(step) {
         const scope = this.currentScope();
-        const key = `loop_${scope}_L${step.line}_${step.condition}`;
+        const isWhile = (step.subtype === 'while');
+        const map = isWhile ? this.whileLoopFactories : this.forLoopFactories;
+        const countMap = isWhile ? this._whileLoopCount : this._forLoopCount;
+        const baseLookup = `${scope}_L${step.line}_${step.condition}`;
 
-        if (!this.loopFactories.has(key)) {
-            this.loopFactories.set(key, {
+        // Find the currently-running factory for this source location
+        let activeKey = null;
+        for (const [k, f] of map) {
+            if (f._baseLookup === baseLookup && f.running) {
+                activeKey = k;
+                break;
+            }
+        }
+
+        if (activeKey && step.conditionResult) {
+            // Continuing an existing loop run
+            const factory = map.get(activeKey);
+            factory.iterations++;
+            factory.steps.push(this.currentStep);
+        } else if (step.conditionResult) {
+            // First iteration → new building
+            const n = this._nextCount(countMap, baseLookup);
+            const typeTag = isWhile ? 'while' : 'for';
+            const key = `${typeTag}_${baseLookup}_#${n}`;
+
+            const factory = {
                 key,
                 subtype: step.subtype,
                 condition: step.condition,
-                iterations: 0,
+                iterations: 1,
                 active: true,
-                running: !!step.conditionResult,
-                steps: [this.currentStep]
+                running: true,
+                steps: [this.currentStep],
+                childStepIndices: [],
+                _baseLookup: baseLookup
+            };
+            map.set(key, factory);
+
+            this._containerStack.push({
+                key, type: typeTag,
+                startStep: this.currentStep,
+                endStep: null,
+                children: factory.childStepIndices
             });
-        }
-
-        const factory = this.loopFactories.get(key);
-        factory.steps.push(this.currentStep);
-
-        if (step.conditionResult) {
-            factory.iterations++;
-            factory.running = true;
-            factory.active = true;
         } else {
-            factory.running = false;
-            factory.active = false;
+            // condition_result == 0 → loop ends
+            if (activeKey) {
+                const factory = map.get(activeKey);
+                factory.running = false;
+                factory.active = true;
+                factory.steps.push(this.currentStep);
+
+                for (let i = this._containerStack.length - 1; i >= 0; i--) {
+                    if (this._containerStack[i].key === activeKey) {
+                        this._containerStack[i].endStep = this.currentStep;
+                        this._containerStack.splice(i, 1);
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -249,58 +300,73 @@ class WorldState {
 
     _handleCondition(step) {
         const scope = this.currentScope();
-        const key = `cond_${scope}_L${step.line}_${step.name}`;
+        const baseLookup = `${scope}_L${step.line}_${step.name}`;
+        const n = this._nextCount(this._condCount, baseLookup);
+        const key = `cond_${baseLookup}_#${n}`;
 
-        this.branchIntersections.set(key, {
+        const intersection = {
             key,
             condition: step.name,
             result: !!step.conditionResult,
-            chosenBranch: null,        // will be filled by BRANCH
+            chosenBranch: null,
             active: true,
-            step: this.currentStep
+            step: this.currentStep,
+            childStepIndices: [],
+            chainLinks: [],
+            _baseLookup: baseLookup
+        };
+        this.branchIntersections.set(key, intersection);
+
+        this._containerStack.push({
+            key, type: 'branch',
+            startStep: this.currentStep,
+            endStep: null,
+            children: intersection.childStepIndices
         });
     }
 
     // ─── BRANCH ────────────────────────────────────────────────────
 
     _handleBranch(step) {
-        // Try to find the most recent CONDITION for this branch
-        const scope = this.currentScope();
-        // Walk backward to find matching condition
-        for (const [, intersection] of this.branchIntersections) {
-            if (intersection.active && !intersection.chosenBranch) {
-                intersection.chosenBranch = step.subtype || step.name || 'taken';
-                break;
+        for (let i = this._containerStack.length - 1; i >= 0; i--) {
+            const c = this._containerStack[i];
+            if (c.type === 'branch') {
+                const intersection = this.branchIntersections.get(c.key);
+                if (intersection && !intersection.chosenBranch) {
+                    intersection.chosenBranch = step.subtype || step.name || 'taken';
+                    intersection.chainLinks.push({
+                        branch: intersection.chosenBranch,
+                        step: this.currentStep
+                    });
+                    c.endStep = this.currentStep;
+                    this._containerStack.splice(i, 1);
+                    break;
+                }
             }
         }
     }
 
-    // ─── Memory layer ──────────────────────────────────────────────
+    // ─── Memory ────────────────────────────────────────────────────
 
     _registerMemoryNode(address, houseKey) {
         if (!address || address === '0') return;
         if (!this.memoryNodes.has(address)) {
-            this.memoryNodes.set(address, {
-                address,
-                variables: new Set()
-            });
+            this.memoryNodes.set(address, { address, variables: new Set() });
         }
         this.memoryNodes.get(address).variables.add(houseKey);
     }
 
-    // ─── Snapshot for renderer ─────────────────────────────────────
+    // ─── Snapshot ──────────────────────────────────────────────────
 
-    /**
-     * Return the full state of the world at the current step.
-     * The renderer reads this to decide what to show.
-     */
     getSnapshot() {
         return {
             step: this.currentStep,
             totalSteps: this.trace.length,
+            trace: this.trace,
             functions: [...this.functionDistricts.values()],
             variables: [...this.variableHouses.values()],
-            loops: [...this.loopFactories.values()],
+            loops: [...this.forLoopFactories.values()],
+            whileLoops: [...this.whileLoopFactories.values()],
             branches: [...this.branchIntersections.values()],
             memory: [...this.memoryNodes.values()],
             callStack: [...this.callStack],

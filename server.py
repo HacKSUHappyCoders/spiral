@@ -27,10 +27,10 @@ DATA_DIR   = os.path.join(STATIC_DIR, "data")
 
 @app.route("/api/trace")
 @app.route("/api/trace/<filename>")
-def get_trace(filename="test_data.json"):
+def get_trace(filename="small_test_data.json"):
     """Return a JSON trace file from the data/ folder.
 
-    GET /api/trace              → returns data/test_data.json
+    GET /api/trace              → returns data/small_test_data.json
     GET /api/trace/foo.json     → returns data/foo.json
     """
     # Basic safety – only allow .json files, no path traversal

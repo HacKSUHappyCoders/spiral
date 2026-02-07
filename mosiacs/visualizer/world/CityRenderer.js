@@ -1,10 +1,12 @@
 /**
- * CityRenderer — Translates WorldState snapshots into 3D Babylon.js meshes
- * arranged along a **descending spiral path**.
+ * CityRenderer — Phase 2
  *
- * Delegates mesh creation to MeshFactory and label management to LabelHelper.
- * This class owns layout (spiral), render orchestration, hover interaction,
- * memory lines, and per-frame state updates.
+ * Translates WorldState snapshots into 3D Babylon.js meshes on a descending
+ * spiral.  Now uses ColorHash for deterministic hash-based colours and
+ * renders while-loops as a separate building type.
+ *
+ * Also owns SubSpiralRenderer which draws mini spirals emerging from
+ * every container building (function, for, while, branch).
  */
 class CityRenderer {
     constructor(scene) {
@@ -13,32 +15,34 @@ class CityRenderer {
         // Helpers
         this.labelHelper = new LabelHelper(scene);
         this.meshFactory = new MeshFactory(scene, this.labelHelper);
+        this.subSpiralRenderer = new SubSpiralRenderer(scene, this.labelHelper);
 
         // Mesh caches:  entityKey → { mesh, extras… }
         this.functionMeshes = new Map();
         this.variableMeshes = new Map();
-        this.loopMeshes = new Map();
-        this.branchMeshes = new Map();
-        this.memoryLines = [];
+        this.loopMeshes     = new Map();   // for-loops
+        this.whileMeshes    = new Map();   // while-loops (new)
+        this.branchMeshes   = new Map();
+        this.memoryLines    = [];
 
-        // Spiral layout config (from centralized SpiralConfig.js)
-        this.spiralRadiusStart = SPIRAL_CONFIG.radiusStart;
+        // Spiral layout config
+        this.spiralRadiusStart  = SPIRAL_CONFIG.radiusStart;
         this.spiralRadiusGrowth = SPIRAL_CONFIG.radiusGrowth;
-        this.spiralAngleStep = SPIRAL_CONFIG.angleStep;
-        this.spiralHeightStep = SPIRAL_CONFIG.heightStep;
+        this.spiralAngleStep    = SPIRAL_CONFIG.angleStep;
+        this.spiralHeightStep   = SPIRAL_CONFIG.heightStep;
 
         // Slot management
         this._nextSlot = 0;
-        this._slotMap = new Map();
+        this._slotMap  = new Map();
 
         this._spiralTube = null;
 
-        // Hover label tracking
+        // Hover
         this._hoveredLabel = null;
         this._hoverAttached = false;
     }
 
-    // ─── Hover observer — show/hide floating labels ────────────────
+    // ─── Hover ─────────────────────────────────────────────────────
 
     _ensureHoverObserver() {
         if (this._hoverAttached) return;
@@ -48,17 +52,15 @@ class CityRenderer {
             if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERMOVE) return;
 
             const pick = this.scene.pick(
-                this.scene.pointerX,
-                this.scene.pointerY,
+                this.scene.pointerX, this.scene.pointerY,
                 (m) => m._buildingData != null
             );
 
             if (pick && pick.hit && pick.pickedMesh && pick.pickedMesh._buildingData) {
                 const entry = this._entryForMesh(pick.pickedMesh);
                 if (entry && entry.label) {
-                    if (this._hoveredLabel && this._hoveredLabel !== entry.label) {
+                    if (this._hoveredLabel && this._hoveredLabel !== entry.label)
                         this._hoveredLabel.setEnabled(false);
-                    }
                     entry.label.setEnabled(true);
                     this._hoveredLabel = entry.label;
                 }
@@ -69,9 +71,8 @@ class CityRenderer {
         });
     }
 
-    /** Look up the cache entry that owns a given building mesh. */
     _entryForMesh(mesh) {
-        for (const cache of [this.functionMeshes, this.variableMeshes, this.loopMeshes, this.branchMeshes]) {
+        for (const cache of [this.functionMeshes, this.variableMeshes, this.loopMeshes, this.whileMeshes, this.branchMeshes]) {
             for (const [, entry] of cache) {
                 if (entry.mesh === mesh) return entry;
             }
@@ -82,30 +83,22 @@ class CityRenderer {
     // ─── Spiral geometry ───────────────────────────────────────────
 
     _spiralPosition(slot) {
-        const angle = slot * this.spiralAngleStep;
+        const angle  = slot * this.spiralAngleStep;
         const radius = this.spiralRadiusStart + slot * this.spiralRadiusGrowth;
-        const totalHeight = Math.max(this._nextSlot, 1) * this.spiralHeightStep;
-        const y = totalHeight - slot * this.spiralHeightStep;
+        const totalH = Math.max(this._nextSlot, 1) * this.spiralHeightStep;
+        const y = totalH - slot * this.spiralHeightStep;
         return new BABYLON.Vector3(
-            Math.cos(angle) * radius,
-            y,
-            Math.sin(angle) * radius
+            Math.cos(angle) * radius, y, Math.sin(angle) * radius
         );
     }
 
     _slotFor(key) {
-        if (!this._slotMap.has(key)) {
-            this._slotMap.set(key, this._nextSlot++);
-        }
+        if (!this._slotMap.has(key)) this._slotMap.set(key, this._nextSlot++);
         return this._slotMap.get(key);
     }
 
-    /**
-     * Compute the tangent angle (rotation around Y) at a given spiral slot
-     * so buildings can be oriented to follow the spiral curve.
-     */
     _spiralTangentAngle(slot) {
-        const angle = slot * this.spiralAngleStep;
+        const angle  = slot * this.spiralAngleStep;
         const radius = this.spiralRadiusStart + slot * this.spiralRadiusGrowth;
         const dx = -Math.sin(angle) * this.spiralAngleStep * radius
                   + Math.cos(angle) * this.spiralRadiusGrowth;
@@ -114,23 +107,27 @@ class CityRenderer {
         return Math.atan2(dx, dz);
     }
 
-    // ─── Main render entry ─────────────────────────────────────────
+    // ─── Main render ───────────────────────────────────────────────
 
     render(snapshot) {
         this._ensureHoverObserver();
         this._renderFunctions(snapshot.functions, snapshot.callStack);
         this._renderVariables(snapshot.variables);
         this._renderLoops(snapshot.loops);
+        this._renderWhileLoops(snapshot.whileLoops || []);
         this._renderBranches(snapshot.branches);
-        // Reposition all buildings now that _nextSlot is finalized,
-        // so every building sits at the correct Y on the spiral.
         this._updateBuildingPositions();
         this._renderMemoryLayer(snapshot.memory);
         this._renderSpiralPath();
+
+        // Sub-spirals emerging from containers
+        const posMap = this._buildPositionMap();
+        this.subSpiralRenderer.render(snapshot, posMap, snapshot.trace || []);
     }
 
     clear() {
-        [this.functionMeshes, this.variableMeshes, this.loopMeshes, this.branchMeshes].forEach(cache => {
+        [this.functionMeshes, this.variableMeshes, this.loopMeshes,
+         this.whileMeshes, this.branchMeshes].forEach(cache => {
             cache.forEach(entry => this._disposeEntry(entry));
             cache.clear();
         });
@@ -139,6 +136,25 @@ class CityRenderer {
         if (this._spiralTube) { this._spiralTube.dispose(); this._spiralTube = null; }
         this._nextSlot = 0;
         this._slotMap.clear();
+        this.subSpiralRenderer.clear();
+    }
+
+    /**
+     * Build a map from entity key → world position for the sub-spiral renderer.
+     */
+    _buildPositionMap() {
+        const m = new Map();
+        const add = (cache) => {
+            for (const [key, entry] of cache) {
+                if (entry.mesh) m.set(key, entry.mesh.position.clone());
+            }
+        };
+        add(this.functionMeshes);
+        add(this.variableMeshes);
+        add(this.loopMeshes);
+        add(this.whileMeshes);
+        add(this.branchMeshes);
+        return m;
     }
 
     // ─── Spiral tube ───────────────────────────────────────────────
@@ -159,106 +175,79 @@ class CityRenderer {
         }, this.scene);
         const mat = new BABYLON.StandardMaterial('spiralMat', this.scene);
         mat.emissiveColor = new BABYLON.Color3(0.8, 0.7, 0.3);
-        mat.diffuseColor = new BABYLON.Color3(0.9, 0.8, 0.4);
+        mat.diffuseColor  = new BABYLON.Color3(0.9, 0.8, 0.4);
         mat.alpha = 0.55;
         this._spiralTube.material = mat;
         this._spiralTube.isPickable = false;
     }
 
-    // ─── Reposition buildings to final spiral Y ──────────────────
+    // ─── Reposition buildings ──────────────────────────────────────
 
     _updateBuildingPositions() {
-        // Function Districts (base baked at y=0 local)
+        // Functions
         for (const [key, entry] of this.functionMeshes) {
             const slot = this._slotMap.get(key);
             if (slot === undefined || !entry.mesh) continue;
             const pos = this._spiralPosition(slot);
-            entry.mesh.position.x = pos.x;
-            entry.mesh.position.y = pos.y;
-            entry.mesh.position.z = pos.z;
-            if (entry.cap) {
-                entry.cap.position.x = pos.x;
-                entry.cap.position.y = pos.y + entry.height + 0.15;
-                entry.cap.position.z = pos.z;
-            }
-            if (entry.label) {
-                entry.label.position.x = pos.x;
-                entry.label.position.y = pos.y + entry.height + 0.5;
-                entry.label.position.z = pos.z;
-            }
+            entry.mesh.position.copyFrom(pos);
+            if (entry.cap)   { entry.cap.position.set(pos.x, pos.y + entry.height + 0.15, pos.z); }
+            if (entry.label) { entry.label.position.set(pos.x, pos.y + entry.height + 0.5, pos.z); }
         }
-
-        // Variable Houses (box centered, shifted up by height/2)
+        // Variables
         for (const [key, entry] of this.variableMeshes) {
             const slot = this._slotMap.get(key);
             if (slot === undefined || !entry.mesh) continue;
             const pos = this._spiralPosition(slot);
-            entry.mesh.position.x = pos.x;
-            entry.mesh.position.y = pos.y + entry.height / 2;
-            entry.mesh.position.z = pos.z;
-            if (entry.roof) {
-                entry.roof.position.x = pos.x;
-                entry.roof.position.y = pos.y + entry.height + 0.35;
-                entry.roof.position.z = pos.z;
-            }
-            if (entry.label) {
-                entry.label.position.x = pos.x;
-                entry.label.position.y = pos.y + entry.height + 1.3;
-                entry.label.position.z = pos.z;
-            }
+            entry.mesh.position.set(pos.x, pos.y + entry.height / 2, pos.z);
+            if (entry.roof)  { entry.roof.position.set(pos.x, pos.y + entry.height + 0.35, pos.z); }
+            if (entry.label) { entry.label.position.set(pos.x, pos.y + entry.height + 1.3, pos.z); }
         }
-
-        // Loop Factories (cylinder centered, shifted up by height/2)
+        // For loops
         for (const [key, entry] of this.loopMeshes) {
             const slot = this._slotMap.get(key);
             if (slot === undefined || !entry.mesh) continue;
             const pos = this._spiralPosition(slot);
-            const tangentAngle = this._spiralTangentAngle(slot);
-            entry.mesh.position.x = pos.x;
-            entry.mesh.position.y = pos.y + entry.height / 2;
-            entry.mesh.position.z = pos.z;
-            if (entry.chimney) {
-                entry.chimney.position.x = pos.x + 0.7 * Math.cos(tangentAngle);
-                entry.chimney.position.y = pos.y + entry.height + 0.65;
-                entry.chimney.position.z = pos.z + 0.7 * Math.sin(tangentAngle);
-            }
-            if (entry.label) {
-                entry.label.position.x = pos.x;
-                entry.label.position.y = pos.y + entry.height + 2;
-                entry.label.position.z = pos.z;
-            }
+            const ta = this._spiralTangentAngle(slot);
+            entry.mesh.position.set(pos.x, pos.y + entry.height / 2, pos.z);
+            if (entry.chimney) entry.chimney.position.set(
+                pos.x + 0.7 * Math.cos(ta), pos.y + entry.height + 0.65, pos.z + 0.7 * Math.sin(ta)
+            );
+            if (entry.label) entry.label.position.set(pos.x, pos.y + entry.height + 2, pos.z);
         }
-
-        // Branch Intersections (base baked at y=0 local)
+        // While loops (same shape as for-loops)
+        for (const [key, entry] of this.whileMeshes) {
+            const slot = this._slotMap.get(key);
+            if (slot === undefined || !entry.mesh) continue;
+            const pos = this._spiralPosition(slot);
+            const ta = this._spiralTangentAngle(slot);
+            entry.mesh.position.set(pos.x, pos.y + entry.height / 2, pos.z);
+            if (entry.chimney) entry.chimney.position.set(
+                pos.x + 0.7 * Math.cos(ta), pos.y + entry.height + 0.65, pos.z + 0.7 * Math.sin(ta)
+            );
+            if (entry.label) entry.label.position.set(pos.x, pos.y + entry.height + 2, pos.z);
+        }
+        // Branches
         for (const [key, entry] of this.branchMeshes) {
             const slot = this._slotMap.get(key);
             if (slot === undefined || !entry.mesh) continue;
             const pos = this._spiralPosition(slot);
-            const tangentAngle = this._spiralTangentAngle(slot);
-            entry.mesh.position.x = pos.x;
-            entry.mesh.position.y = pos.y;
-            entry.mesh.position.z = pos.z;
+            const ta = this._spiralTangentAngle(slot);
+            entry.mesh.position.copyFrom(pos);
             if (entry.truePath) {
-                const tAngle = tangentAngle + Math.PI / 6;
-                entry.truePath.position.x = pos.x + Math.cos(tAngle) * 0.8;
-                entry.truePath.position.y = pos.y + 0.1;
-                entry.truePath.position.z = pos.z + Math.sin(tAngle) * 0.8;
+                const a = ta + Math.PI / 6;
+                entry.truePath.position.set(pos.x + Math.cos(a) * 0.8, pos.y + 0.1, pos.z + Math.sin(a) * 0.8);
             }
             if (entry.falsePath) {
-                const fAngle = tangentAngle - Math.PI / 6;
-                entry.falsePath.position.x = pos.x + Math.cos(fAngle) * 0.8;
-                entry.falsePath.position.y = pos.y + 0.1;
-                entry.falsePath.position.z = pos.z + Math.sin(fAngle) * 0.8;
+                const a = ta - Math.PI / 6;
+                entry.falsePath.position.set(pos.x + Math.cos(a) * 0.8, pos.y + 0.1, pos.z + Math.sin(a) * 0.8);
             }
-            if (entry.label) {
-                entry.label.position.x = pos.x;
-                entry.label.position.y = pos.y + entry.height + 1;
-                entry.label.position.z = pos.z;
-            }
+            if (entry.label) entry.label.position.set(pos.x, pos.y + entry.height + 1, pos.z);
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // ─── Function Districts ────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
 
     _renderFunctions(functions, callStack) {
         const activeKeys = new Set();
@@ -280,6 +269,7 @@ class CityRenderer {
         const height = 4 + fn.depth * 2.5;
         const width = 3.5;
         const tangentAngle = this._spiralTangentAngle(slot);
+        const color = ColorHash.color('function', fn.name);
 
         const mesh = BABYLON.MeshBuilder.CreateCylinder(`building_${fn.key}`, {
             height, diameterTop: width * 0.5, diameterBottom: width, tessellation: 4, subdivisions: 1
@@ -289,8 +279,6 @@ class CityRenderer {
         mesh.bakeTransformIntoVertices(bake);
         mesh.position = pos.clone();
         mesh.rotation.y = tangentAngle;
-
-        const color = { r: 0.8, g: 0.2, b: 0.2, a: 0.85 };
         mesh.material = this._glowMaterial(`fnMat_${fn.key}`, color);
 
         const cap = BABYLON.MeshBuilder.CreateBox(`fnCap_${fn.key}`, {
@@ -308,7 +296,10 @@ class CityRenderer {
         this._animateScaleIn(mesh);
         this._animateScaleIn(cap);
 
-        const label = this._createFloatingLabel(`fnLabel_${fn.key}`, fn.name, pos.clone(), height + 0.5, color);
+        const invLabel = fn.invocation > 1 ? ` #${fn.invocation}` : '';
+        const label = this._createFloatingLabel(
+            `fnLabel_${fn.key}`, `${fn.name}()${invLabel}`, pos.clone(), height + 0.5, color
+        );
         label.setEnabled(false);
         label.isPickable = false;
 
@@ -336,19 +327,22 @@ class CityRenderer {
         return children;
     }
 
-    _updateFunctionState(entry, fn, isOnStack) {
+    _updateFunctionState(entry, fn) {
         if (!entry.mesh) return;
         if (entry.mesh.material) entry.mesh.material.alpha = 0.85;
         if (entry.cap && entry.cap.material) entry.cap.material.alpha = 0.9;
         if (entry.mesh._buildingData) {
-            entry.mesh._buildingData.childSteps = MeshFactory.fnChildSteps(fn);
+            entry.mesh._buildingData.childSteps = this._fnChildSteps(fn);
         }
         if (fn.returnValue !== null && fn.returnValue !== undefined) {
-            this.labelHelper.update(entry.label, `${fn.name} → ${fn.returnValue}`);
+            const invLabel = fn.invocation > 1 ? ` #${fn.invocation}` : '';
+            this.labelHelper.update(entry.label, `${fn.name}()${invLabel} → ${fn.returnValue}`);
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // ─── Variable Houses ───────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
 
     _renderVariables(variables) {
         const activeKeys = new Set();
@@ -370,6 +364,7 @@ class CityRenderer {
         const height = 2;
         const width = 1.4;
         const tangentAngle = this._spiralTangentAngle(slot);
+        const color = ColorHash.color('variable', v.name);
 
         const mesh = BABYLON.MeshBuilder.CreateBox(`building_${v.key}`, {
             height, width, depth: width
@@ -377,8 +372,6 @@ class CityRenderer {
         mesh.position = pos.clone();
         mesh.position.y += height / 2;
         mesh.rotation.y = tangentAngle;
-
-        const color = { r: 0.2, g: 0.4, b: 0.8, a: 0.85 };
         mesh.material = this._glowMaterial(`varMat_${v.key}`, color);
 
         const roof = BABYLON.MeshBuilder.CreateCylinder(`varRoof_${v.key}`, {
@@ -432,7 +425,7 @@ class CityRenderer {
         }
         if (entry.roof && entry.roof.material) entry.roof.material.alpha = 0.9;
         if (entry.mesh._buildingData) {
-            entry.mesh._buildingData.childSteps = MeshFactory.varChildSteps(v);
+            entry.mesh._buildingData.childSteps = this._varChildSteps(v);
             entry.mesh._buildingData.stepData.value = v.currentValue;
         }
         if (entry.label) {
@@ -440,7 +433,9 @@ class CityRenderer {
         }
     }
 
-    // ─── Loop Factories ────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // ─── For-Loop Factories ────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
 
     _renderLoops(loops) {
         const activeKeys = new Set();
@@ -449,7 +444,7 @@ class CityRenderer {
             if (!this.loopMeshes.has(loop.key)) {
                 const slot = this._slotFor(loop.key);
                 const pos = this._spiralPosition(slot);
-                this.loopMeshes.set(loop.key, this._createLoopFactory(loop, pos, slot));
+                this.loopMeshes.set(loop.key, this._createLoopFactory(loop, pos, slot, 'for'));
             }
             this._updateLoopState(this.loopMeshes.get(loop.key), loop);
         });
@@ -458,10 +453,35 @@ class CityRenderer {
         });
     }
 
-    _createLoopFactory(loop, pos, slot) {
+    // ═══════════════════════════════════════════════════════════════
+    // ─── While-Loop Factories (new building type) ──────────────────
+    // ═══════════════════════════════════════════════════════════════
+
+    _renderWhileLoops(whileLoops) {
+        const activeKeys = new Set();
+        whileLoops.forEach(loop => {
+            activeKeys.add(loop.key);
+            if (!this.whileMeshes.has(loop.key)) {
+                const slot = this._slotFor(loop.key);
+                const pos = this._spiralPosition(slot);
+                this.whileMeshes.set(loop.key, this._createLoopFactory(loop, pos, slot, 'while'));
+            }
+            this._updateLoopState(this.whileMeshes.get(loop.key), loop);
+        });
+        this.whileMeshes.forEach((entry, key) => {
+            if (!activeKeys.has(key)) this._setInactive(entry);
+        });
+    }
+
+    /**
+     * Shared factory builder for both for-loops and while-loops.
+     * The colour differs based on loopType.
+     */
+    _createLoopFactory(loop, pos, slot, loopType) {
         const height = 3;
         const width = 2.6;
         const tangentAngle = this._spiralTangentAngle(slot);
+        const color = ColorHash.color(loopType, loop.condition);
 
         const mesh = BABYLON.MeshBuilder.CreateCylinder(`building_${loop.key}`, {
             height, diameterTop: width * 0.75, diameterBottom: width, tessellation: 6
@@ -469,8 +489,6 @@ class CityRenderer {
         mesh.position = pos.clone();
         mesh.position.y += height / 2;
         mesh.rotation.y = tangentAngle;
-
-        const color = { r: 0.6, g: 0.2, b: 0.8, a: 0.85 };
         mesh.material = this._glowMaterial(`loopMat_${loop.key}`, color);
 
         const chimney = BABYLON.MeshBuilder.CreateCylinder(`loopChimney_${loop.key}`, {
@@ -480,14 +498,17 @@ class CityRenderer {
         chimney.position.y += height + 0.65;
         chimney.position.x += 0.7 * Math.cos(tangentAngle);
         chimney.position.z += 0.7 * Math.sin(tangentAngle);
-        chimney.material = this._glowMaterial(`loopChimneyMat_${loop.key}`,
-            { r: 0.4, g: 0.15, b: 0.6, a: 0.9 });
+        chimney.material = this._glowMaterial(`loopChimneyMat_${loop.key}`, {
+            r: Math.min(color.r * 0.7, 1), g: Math.min(color.g * 0.7, 1),
+            b: Math.min(color.b * 0.7, 1), a: 0.9
+        });
         chimney.isPickable = false;
 
         this._animateScaleIn(mesh);
         this._animateScaleIn(chimney);
 
-        const labelText = `${loop.subtype.toUpperCase()} (${loop.condition}) ×${loop.iterations}`;
+        const typeLabel = loopType.toUpperCase();
+        const labelText = `${typeLabel} (${loop.condition}) ×${loop.iterations}`;
         const label = this._createFloatingLabel(`loopLabel_${loop.key}`, labelText, pos.clone(), height + 2, color);
         label.setEnabled(false);
         label.isPickable = false;
@@ -502,12 +523,13 @@ class CityRenderer {
         mesh._trapHeight = height;
         mesh._entityData = loop;
 
-        return { mesh, chimney, label, height, color, type: 'loop' };
+        return { mesh, chimney, label, height, color, type: loopType };
     }
 
     _loopChildSteps(loop) {
         return loop.steps.map((s, i) => ({
-            type: 'LOOP', name: `iteration ${i + 1}`, value: i < loop.iterations ? '✓' : '✗',
+            type: 'LOOP', name: `iteration ${i + 1}`,
+            value: i < loop.iterations ? '✓' : '✗',
             address: '0', line: 0, condition: loop.condition
         }));
     }
@@ -522,14 +544,17 @@ class CityRenderer {
         }
         if (entry.chimney && entry.chimney.material) entry.chimney.material.alpha = 0.9;
         if (entry.mesh._buildingData) {
-            entry.mesh._buildingData.childSteps = MeshFactory.loopChildSteps(loop);
+            entry.mesh._buildingData.childSteps = this._loopChildSteps(loop);
         }
         if (entry.label) {
-            this.labelHelper.update(entry.label, `${loop.subtype.toUpperCase()} (${loop.condition}) ×${loop.iterations}`);
+            const typeLabel = (entry.type || 'loop').toUpperCase();
+            this.labelHelper.update(entry.label, `${typeLabel} (${loop.condition}) ×${loop.iterations}`);
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // ─── Branch Intersections ──────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
 
     _renderBranches(branches) {
         const activeKeys = new Set();
@@ -551,6 +576,8 @@ class CityRenderer {
         const height = 2.2;
         const width = 2.2;
         const tangentAngle = this._spiralTangentAngle(slot);
+        const branchType = br.chosenBranch === 'else' ? 'else' : 'branch';
+        const color = ColorHash.color(branchType, br.condition);
 
         const mesh = BABYLON.MeshBuilder.CreateCylinder(`building_${br.key}`, {
             height, diameterTop: 0.3, diameterBottom: width, tessellation: 4
@@ -560,8 +587,6 @@ class CityRenderer {
         mesh.bakeTransformIntoVertices(bake);
         mesh.position = pos.clone();
         mesh.rotation.y = tangentAngle;
-
-        const color = { r: 0.9, g: 0.4, b: 0.2, a: 0.85 };
         mesh.material = this._glowMaterial(`branchMat_${br.key}`, color);
 
         const truePath = this._createPathIndicator(`brTrue_${br.key}`, pos, 1.6, tangentAngle + Math.PI / 6, true);
@@ -582,7 +607,9 @@ class CityRenderer {
             color, type: 'CONDITION',
             childSteps: [
                 { type: 'CONDITION', name: br.condition, value: br.result ? 'true' : 'false', address: '0', line: 0 },
-                ...(br.chosenBranch ? [{ type: 'BRANCH', name: br.chosenBranch, value: '', address: '0', line: 0, subtype: br.chosenBranch }] : [])
+                ...(br.chosenBranch
+                    ? [{ type: 'BRANCH', name: br.chosenBranch, value: '', address: '0', line: 0, subtype: br.chosenBranch }]
+                    : [])
             ],
             capMesh: null
         };
@@ -611,16 +638,16 @@ class CityRenderer {
 
     _updateBranchState(entry, br) {
         if (!entry.mesh) return;
-        if (entry.truePath && entry.truePath.material)
-            entry.truePath.material.alpha = 0.9;
-        if (entry.falsePath && entry.falsePath.material)
-            entry.falsePath.material.alpha = 0.9;
+        if (entry.truePath && entry.truePath.material) entry.truePath.material.alpha = 0.9;
+        if (entry.falsePath && entry.falsePath.material) entry.falsePath.material.alpha = 0.9;
         if (entry.label) {
             this.labelHelper.update(entry.label, `IF (${br.condition}) → ${br.result ? 'true' : 'false'}`);
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // ─── Memory Layer ──────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
 
     _renderMemoryLayer(memoryNodes) {
         this.memoryLines.forEach(l => l.dispose());
@@ -651,15 +678,17 @@ class CityRenderer {
         });
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // ─── Shared helpers ────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
 
     _setInactive(entry) {
         if (!entry) return;
-        if (entry.mesh && entry.mesh.material) entry.mesh.material.alpha = 0.85;
-        if (entry.cap && entry.cap.material) entry.cap.material.alpha = 0.9;
-        if (entry.roof && entry.roof.material) entry.roof.material.alpha = 0.9;
+        if (entry.mesh && entry.mesh.material)      entry.mesh.material.alpha = 0.85;
+        if (entry.cap && entry.cap.material)         entry.cap.material.alpha = 0.9;
+        if (entry.roof && entry.roof.material)       entry.roof.material.alpha = 0.9;
         if (entry.chimney && entry.chimney.material) entry.chimney.material.alpha = 0.9;
-        if (entry.truePath && entry.truePath.material) entry.truePath.material.alpha = 0.9;
+        if (entry.truePath && entry.truePath.material)   entry.truePath.material.alpha = 0.9;
         if (entry.falsePath && entry.falsePath.material) entry.falsePath.material.alpha = 0.9;
     }
 
