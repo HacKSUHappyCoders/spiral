@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const errorDetails = errors.map(e => 
                         `  • ${e.file}: [${e.stage}] ${e.message}`
                     ).join('\n');
-                    alert(`${resultMsg}\n\nErrors:\n${errorDetails}`);
+                    console.log(`${resultMsg}\n\nErrors:\n${errorDetails}`);
                 } else {
                     console.log(resultMsg);
                 }
