@@ -147,7 +147,7 @@ class CameraController {
 
                 const slow = evt.ctrlKey ? 0.2 : 1.0;
                 const sensitivity = camera.radius * 0.002 * slow;
-                const offset = right.scale(-dx * sensitivity).add(up.scale(dy * sensitivity));
+                const offset = right.scale(dx * sensitivity).add(up.scale(dy * sensitivity));
                 camera.target.addInPlace(offset);
 
                 pointerInfo.skipOnPointerObservable = true;
