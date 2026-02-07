@@ -32,7 +32,7 @@ C_KEYWORDS = {
     "do",
 }
 
-DELIM = "\\0"  # Null byte delimiter for output parsing
+DELIM = "\\0"
 
 TYPE_FMT_MAP = {
     "int": "%d",
@@ -361,7 +361,6 @@ class CodeInstrumenter:
 
         self._add_after(start_line, "    __stack_depth++;")
 
-        # Build CALL trace
         parts = ["CALL", func_name]
         if params:
             for p in params:
