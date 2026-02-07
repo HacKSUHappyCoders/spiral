@@ -622,6 +622,7 @@ class ExplodeManager {
         // Build HTML inspector
         const panel = this._buildInspectorHTML(bd, entity);
         document.body.appendChild(panel);
+        makeDraggable(panel, panel.querySelector('.inspector-header'));
 
         // Animate in
         requestAnimationFrame(() => panel.classList.add('open'));
@@ -838,6 +839,7 @@ class ExplodeManager {
         panel.innerHTML = html;
 
         document.body.appendChild(panel);
+        makeDraggable(panel, panel.querySelector('.inspector-header') || panel.querySelector('.dot-header'));
         requestAnimationFrame(() => panel.classList.add('open'));
 
         panel.querySelector('.inspector-close').addEventListener('click', () => {
@@ -1018,6 +1020,7 @@ class ExplodeManager {
         panel.innerHTML = html;
 
         document.body.appendChild(panel);
+        makeDraggable(panel, panel.querySelector('.inspector-header') || panel.querySelector('.dot-header'));
         requestAnimationFrame(() => panel.classList.add('open'));
 
         panel.querySelector('.inspector-close').addEventListener('click', () => {

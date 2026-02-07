@@ -14,7 +14,7 @@ body {
 }
 
 #controls {
-    position: absolute;
+    position: fixed;
     display: flex;
     flex-direction: column;
     bottom: 20px;
@@ -150,7 +150,7 @@ input[type="file"] {
 }
 
 #info {
-    position: absolute;
+    position: fixed;
     bottom: 20px;
     right: 20px;
     background: linear-gradient(
@@ -540,6 +540,9 @@ input[type="file"] {
 }
 
 .code-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 10px 16px;
     font-size: 11px;
     font-weight: 600;
@@ -551,6 +554,56 @@ input[type="file"] {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: rgba(255, 255, 255, 0.03);
 }
+
+.code-save-btn {
+    padding: 4px 12px;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+    border-radius: 6px;
+}
+
+/* Editor wrap: gutter + textarea side by side */
+.code-editor-wrap {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.code-gutter {
+    width: 44px;
+    min-width: 44px;
+    overflow: hidden;
+    text-align: right;
+    padding-right: 14px;
+    color: rgba(255, 255, 255, 0.2);
+    font: 11px/1.7 'Consolas', 'Courier New', monospace;
+    user-select: none;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.code-gutter-line.highlighted {
+    color: #ffe600;
+    font-weight: bold;
+    text-shadow: 0 0 8px rgba(255, 230, 0, 0.6);
+}
+
+.code-textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    outline: none;
+    background: rgba(0, 0, 0, 0.15);
+    color: rgba(255, 255, 255, 0.65);
+    font: 12px/1.7 'Consolas', 'Courier New', monospace;
+    padding: 0 14px;
+    tab-size: 4;
+}
+
+.code-textarea::-webkit-scrollbar { width: 6px; }
+.code-textarea::-webkit-scrollbar-track { background: transparent; }
+.code-textarea::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+.code-textarea::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
 
 .code-panel-content {
     flex: 1;
