@@ -48,6 +48,9 @@ class GalaxyWarpManager {
 
         // Pending setTimeout IDs for staggered animations
         this._pendingTimers = [];
+
+        // ── Performance: shared material cache (type → StandardMaterial) ──
+        this._matCache = new Map();
     }
 
     // ─── Public API ────────────────────────────────────────────────
@@ -239,14 +242,17 @@ class GalaxyWarpManager {
             spiralTube = BABYLON.MeshBuilder.CreateTube('galaxySpiralTube', {
                 path: pathPoints,
                 radius: 0.15,
-                sideOrientation: BABYLON.Mesh.DOUBLESIDE
+                sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+                tessellation: 8
             }, this.scene);
             const mat = new BABYLON.StandardMaterial('galaxySpiralMat', this.scene);
             mat.emissiveColor = new BABYLON.Color3(0.6, 0.5, 0.9);
             mat.diffuseColor = new BABYLON.Color3(0.7, 0.6, 1.0);
             mat.alpha = 0.55;
+            mat.freeze();
             spiralTube.material = mat;
             spiralTube.isPickable = false;
+            spiralTube.freezeWorldMatrix();
             meshes.push(spiralTube);
         }
 
@@ -257,38 +263,51 @@ class GalaxyWarpManager {
         this._pendingTimers.forEach(id => clearTimeout(id));
         this._pendingTimers = [];
 
-        // Animate them in with staggered pop
-        meshes.forEach((mesh, i) => {
-            if (mesh._isGalaxyBuilding) {
-                mesh.scaling = new BABYLON.Vector3(0, 0, 0);
-                const anim = new BABYLON.Animation(
-                    `galaxyPop_${i}`, 'scaling', 30,
-                    BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
-                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-                );
-                anim.setKeys([
-                    { frame: 0, value: new BABYLON.Vector3(0, 0, 0) },
-                    { frame: 10, value: new BABYLON.Vector3(1.15, 1.15, 1.15) },
-                    { frame: 15, value: new BABYLON.Vector3(1, 1, 1) }
-                ]);
-                const ease = new BABYLON.CubicEase();
-                ease.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEOUT);
-                anim.setEasingFunction(ease);
+        // Create a single reusable pop-in animation template
+        const popAnim = new BABYLON.Animation(
+            'galaxyPopShared', 'scaling', 30,
+            BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+            BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+        );
+        popAnim.setKeys([
+            { frame: 0, value: new BABYLON.Vector3(0, 0, 0) },
+            { frame: 10, value: new BABYLON.Vector3(1.15, 1.15, 1.15) },
+            { frame: 15, value: new BABYLON.Vector3(1, 1, 1) }
+        ]);
+        const ease = new BABYLON.CubicEase();
+        ease.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEOUT);
+        popAnim.setEasingFunction(ease);
 
-                const timerId = setTimeout(() => {
-                    if (!mesh.isDisposed()) {
-                        this.scene.beginDirectAnimation(mesh, [anim], 0, 15, false);
-                    }
-                }, i * 50);
-                this._pendingTimers.push(timerId);
-            }
+        // Animate with staggered pop and freeze after animation completes
+        const buildingMeshes = meshes.filter(m => m._isGalaxyBuilding);
+        buildingMeshes.forEach((mesh, i) => {
+            mesh.scaling = new BABYLON.Vector3(0, 0, 0);
+            const timerId = setTimeout(() => {
+                if (!mesh.isDisposed()) {
+                    this.scene.beginDirectAnimation(mesh, [popAnim], 0, 15, false, 1.0, () => {
+                        // Freeze world matrix once animation is done for perf
+                        if (!mesh.isDisposed()) {
+                            mesh.freezeWorldMatrix();
+                        }
+                    });
+                }
+            }, i * 40);  // slightly faster stagger (40ms vs 50ms)
+            this._pendingTimers.push(timerId);
         });
+
+        // Freeze extra meshes (roofs, labels) immediately
+        for (const extra of this._galaxyExtraMeshes) {
+            if (extra && !extra.isDisposed()) {
+                extra.freezeWorldMatrix();
+            }
+        }
 
         return { entities, meshes, pathPoints, center };
     }
 
     /**
      * Create a single building mesh for the galaxy.
+     * Uses cached materials per entity type for performance.
      */
     _createGalaxyBuilding(entity, pos, index, parentKey) {
         const colorType = entity.colorType || entity.type || 'CALL';
@@ -308,7 +327,7 @@ class GalaxyWarpManager {
                 mesh.position = pos.clone();
                 mesh.position.y += height / 2;
 
-                // Roof
+                // Roof — share material via cache
                 const roof = BABYLON.MeshBuilder.CreateCylinder(
                     `galaxy_varRoof_${parentKey}_${index}`,
                     { height: 0.6, diameterTop: 0, diameterBottom: 2.0, tessellation: 4 },
@@ -317,7 +336,7 @@ class GalaxyWarpManager {
                 roof.bakeTransformIntoVertices(BABYLON.Matrix.RotationY(Math.PI / 4));
                 roof.position = pos.clone();
                 roof.position.y += height + 0.3;
-                roof.material = this._glowMat(`galaxy_varRoofMat_${index}`, {
+                roof.material = this._getCachedMat('varRoof', {
                     r: Math.min(color.r * 1.3, 1),
                     g: Math.min(color.g * 1.3, 1),
                     b: Math.min(color.b * 1.3, 1),
@@ -341,7 +360,7 @@ class GalaxyWarpManager {
             }
             case 'call':
             case 'return': {
-                // Tall tower
+                // Tall tower — reduced tessellation
                 const height = 3.5;
                 mesh = BABYLON.MeshBuilder.CreateCylinder(
                     `galaxy_call_${parentKey}_${index}`,
@@ -355,10 +374,10 @@ class GalaxyWarpManager {
                 break;
             }
             default: {
-                // Generic sphere
+                // Generic sphere — fewer segments
                 mesh = BABYLON.MeshBuilder.CreateSphere(
                     `galaxy_gen_${parentKey}_${index}`,
-                    { diameter: 1.8, segments: 8 },
+                    { diameter: 1.8, segments: 6 },
                     this.scene
                 );
                 mesh.position = pos.clone();
@@ -367,7 +386,8 @@ class GalaxyWarpManager {
             }
         }
 
-        mesh.material = this._glowMat(`galaxy_mat_${parentKey}_${index}`, color);
+        // Use shared cached material per entity type
+        mesh.material = this._getCachedMat(colorType, color);
         mesh.isPickable = true;
         mesh._isGalaxyBuilding = true;
         mesh._entityData = entity;
@@ -390,12 +410,12 @@ class GalaxyWarpManager {
     _createWarpLine(from, to, color) {
         this._disposeWarpLine();
 
-        // Create a curved path (catenary-like arc) from source to destination
+        // Create a curved path (catenary-like arc) — fewer segments for perf
         const mid = BABYLON.Vector3.Lerp(from, to, 0.5);
         mid.y += 25; // arc upward
 
         const pathPoints = [];
-        const segments = 60;
+        const segments = 30;
         for (let i = 0; i <= segments; i++) {
             const t = i / segments;
             // Quadratic Bézier
@@ -407,10 +427,9 @@ class GalaxyWarpManager {
             pathPoints.push(p);
         }
 
-        // Create the tube with varying radius for a "stream" effect
+        // Create the tube with varying radius — lower tessellation
         const radiusFunction = (i, distance) => {
             const t = i / segments;
-            // Thicker in the middle, thinner at ends
             return 0.15 + 0.25 * Math.sin(t * Math.PI);
         };
 
@@ -418,10 +437,10 @@ class GalaxyWarpManager {
             path: pathPoints,
             radiusFunction,
             sideOrientation: BABYLON.Mesh.DOUBLESIDE,
-            tessellation: 12
+            tessellation: 8
         }, this.scene);
 
-        // Animated rainbow material
+        // Animated material
         const mat = new BABYLON.StandardMaterial('warpLineMat', this.scene);
         mat.emissiveColor = new BABYLON.Color3(
             color.r * 0.8, color.g * 0.8, color.b * 0.8
@@ -431,6 +450,7 @@ class GalaxyWarpManager {
         mat.backFaceCulling = false;
         this._warpLine.material = mat;
         this._warpLine.isPickable = false;
+        this._warpLine.freezeWorldMatrix();
         this._warpLineMat = mat;
 
         // Animate the warp line's emissive color to pulse
@@ -445,7 +465,6 @@ class GalaxyWarpManager {
             { frame: 30, value: new BABYLON.Color3(
                 Math.min(c.r * 1.2, 1), Math.min(c.g * 1.2, 1), Math.min(c.b * 1.2, 1)
             )},
-            { frame: 45, value: new BABYLON.Color3(c.g * 0.7, c.b * 0.7, c.r * 0.7) },
             { frame: 60, value: new BABYLON.Color3(c.r * 0.5, c.g * 0.5, c.b * 0.5) },
         ]);
         this.scene.beginDirectAnimation(
@@ -458,58 +477,49 @@ class GalaxyWarpManager {
 
     /**
      * Small glowing spheres that travel along the warp line.
+     * Performance: fewer particles (4 instead of 8), shared material,
+     * fewer keyframes, no individual scale animations.
      */
     _createWarpParticles(pathPoints, color) {
         this._disposeWarpParticles();
 
-        const numParticles = 8;
+        const numParticles = 4;
+
+        // Single shared material for all warp particles
+        const sharedMat = new BABYLON.StandardMaterial('warpParticleSharedMat', this.scene);
+        sharedMat.emissiveColor = new BABYLON.Color3(
+            Math.min(color.r * 1.1, 1),
+            Math.min(color.g * 1.1, 1),
+            Math.min(color.b * 1.1, 1)
+        );
+        sharedMat.alpha = 0.85;
+        sharedMat.freeze();
+        this._warpParticleSharedMat = sharedMat;
+
         for (let p = 0; p < numParticles; p++) {
             const sphere = BABYLON.MeshBuilder.CreateSphere(
                 `warpParticle_${p}`,
                 { diameter: 0.4, segments: 4 },
                 this.scene
             );
-            const mat = new BABYLON.StandardMaterial(`warpParticleMat_${p}`, this.scene);
-            // Each particle gets a slightly different hue
-            const hueShift = p / numParticles;
-            mat.emissiveColor = new BABYLON.Color3(
-                (color.r + hueShift * 0.4) % 1.0,
-                (color.g + hueShift * 0.3) % 1.0,
-                (color.b + hueShift * 0.5) % 1.0
-            );
-            mat.alpha = 0.85;
-            sphere.material = mat;
+            sphere.material = sharedMat;
             sphere.isPickable = false;
 
-            // Animate along the path
+            // Animate along the path with fewer keyframes (sample every 2nd point)
             const posAnim = new BABYLON.Animation(
                 `warpParticlePos_${p}`, 'position', 20,
                 BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
                 BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
             );
             const keys = [];
-            const totalFrames = 120;
-            for (let i = 0; i <= totalFrames; i++) {
-                // Offset each particle so they're spread out along the path
+            const totalFrames = 80;
+            for (let i = 0; i <= totalFrames; i += 2) {
                 const rawT = (i / totalFrames + p / numParticles) % 1.0;
                 const pathIdx = Math.floor(rawT * (pathPoints.length - 1));
                 keys.push({ frame: i, value: pathPoints[pathIdx].clone() });
             }
             posAnim.setKeys(keys);
             this.scene.beginDirectAnimation(sphere, [posAnim], 0, totalFrames, true);
-
-            // Scale pulse
-            const scaleAnim = new BABYLON.Animation(
-                `warpParticleScale_${p}`, 'scaling', 30,
-                BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
-                BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
-            );
-            scaleAnim.setKeys([
-                { frame: 0, value: new BABYLON.Vector3(0.8, 0.8, 0.8) },
-                { frame: 15, value: new BABYLON.Vector3(1.3, 1.3, 1.3) },
-                { frame: 30, value: new BABYLON.Vector3(0.8, 0.8, 0.8) },
-            ]);
-            this.scene.beginDirectAnimation(sphere, [scaleAnim], 0, 30, true);
 
             this._warpParticles.push(sphere);
         }
@@ -523,7 +533,7 @@ class GalaxyWarpManager {
         const ring = BABYLON.MeshBuilder.CreateTorus('sourceGlow', {
             diameter: 5,
             thickness: 0.3,
-            tessellation: 32
+            tessellation: 16  // reduced from 32
         }, this.scene);
         ring.position = pos.clone();
         ring.position.y -= 0.2;
@@ -725,6 +735,19 @@ class GalaxyWarpManager {
 
     // ─── Helpers ───────────────────────────────────────────────────
 
+    /**
+     * Get or create a cached material for a given key.
+     * Shared materials across galaxy buildings of the same type
+     * dramatically reduce material count and GPU state switches.
+     */
+    _getCachedMat(key, color) {
+        if (this._matCache.has(key)) return this._matCache.get(key);
+        const mat = this._glowMat(`galaxyCached_${key}`, color);
+        mat.freeze();
+        this._matCache.set(key, mat);
+        return mat;
+    }
+
     _glowMat(name, color) {
         const mat = new BABYLON.StandardMaterial(name, this.scene);
         mat.diffuseColor = new BABYLON.Color3(color.r, color.g, color.b);
@@ -794,12 +817,20 @@ class GalaxyWarpManager {
         this._pendingTimers.forEach(id => clearTimeout(id));
         this._pendingTimers = [];
 
+        // Collect cached material references so we don't accidentally dispose them
+        const cachedMats = new Set(this._matCache.values());
+
         for (const mesh of this._galaxyMeshes) {
             if (mesh && !mesh.isDisposed()) {
                 this.scene.stopAnimation(mesh);
                 if (mesh.material) {
-                    if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.dispose();
-                    mesh.material.dispose();
+                    // Only dispose non-cached materials
+                    if (!cachedMats.has(mesh.material)) {
+                        if (mesh.material.diffuseTexture) mesh.material.diffuseTexture.dispose();
+                        mesh.material.dispose();
+                    } else {
+                        mesh.material = null; // detach without disposing
+                    }
                 }
                 mesh.dispose();
             }
@@ -815,8 +846,12 @@ class GalaxyWarpManager {
         for (const m of orphans) {
             this.scene.stopAnimation(m);
             if (m.material) {
-                if (m.material.diffuseTexture) m.material.diffuseTexture.dispose();
-                m.material.dispose();
+                if (!cachedMats.has(m.material)) {
+                    if (m.material.diffuseTexture) m.material.diffuseTexture.dispose();
+                    m.material.dispose();
+                } else {
+                    m.material = null;
+                }
             }
             m.dispose();
         }
@@ -845,11 +880,17 @@ class GalaxyWarpManager {
         for (const p of this._warpParticles) {
             if (p && !p.isDisposed()) {
                 this.scene.stopAnimation(p);
-                if (p.material) p.material.dispose();
+                p.material = null;   // don't dispose shared material here
                 p.dispose();
             }
         }
         this._warpParticles = [];
+
+        // Dispose the shared warp-particle material
+        if (this._warpParticleSharedMat) {
+            this._warpParticleSharedMat.dispose();
+            this._warpParticleSharedMat = null;
+        }
 
         // Safety net: dispose any orphaned warp particle meshes
         const orphanParticles = this.scene.meshes.filter(m =>
@@ -912,6 +953,10 @@ class GalaxyWarpManager {
             }
             m.dispose();
         }
+
+        // Dispose cached materials
+        this._matCache.forEach(mat => mat.dispose());
+        this._matCache.clear();
 
         // Restore main spiral opacity if it was dimmed
         if (this.warpedGalaxy) {

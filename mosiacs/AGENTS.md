@@ -232,7 +232,7 @@ The 255 values are solid inplace, but the X values can be changed and are determ
 ## NEW BIG FEATURE
 Now we want to build a spiral inside of spiral idea. So for example, we have function buildings, and inside of functions there is code. So lets make it so when we click on a function, if statement, for loop and while loop, a new spiral comes out of them that represents the code inside of them. This code inside each would not be displayed in the main spiral, but instead in this mini subversion spiral. Also can you make it so all the spirals are visibly created as the program is run. and also keep all the spiral visible. In addition, each spirals path color should be different too. But essentially I want spirals building off of spirals to make a really cool mosiac.
 
-## Phase 3 Toggled features
+### Phase 3 Toggled features
 ** THIS SECTION IS ALL ABOUT BEAUTY AND FUNCTIONALITY **
 ** Trying to make these toggles useful but also beautiful to look at. **
 
@@ -243,5 +243,18 @@ In this phase we will be creating a lot of different visual features that can be
 
 # Part 2 - sub spiral galaxy formation and connection
 
-# Part 3 - Causailty Visualization
+# Part 3 - Causailty Visualization (togglable)
 - Each value that has been assigned, it should point to the value that created it. THis should come together to create a web. When you connect the values up, color the lines to be a color similar to the two values being connected up and make it look like a visually beautiful spider web.
+
+# Part 3.5 - Small quality of life features
+- when you load in, have the camera be looking down upon the mosaic zoomed out an apropriate way
+- I want to be able to zoom out a lot more to be able to see things from further away.
+- Some of the same type of buildings are too similar in color, feel free to be more extreme in the color variations between smae buildings.
+
+
+# Part 4 - Low quality total render. 
+- THis one should be a toggle for sure, but I think it would be really awesome to have a total code base spiral render, where all the sub spirals are rendered at the same time. When on this toggle, the user does not need to access data points, or see titles. It is just a purley visual spectical. You can make the camera zoomed out and above to
+
+
+# Part whenever
+- In the sub spirals and 

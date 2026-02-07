@@ -407,3 +407,32 @@ select option {
     0%, 100% { box-shadow: 0 0 8px rgba(140, 100, 255, 0.2); }
     50%      { box-shadow: 0 0 20px rgba(140, 100, 255, 0.5); }
 }
+
+/* ─── Causality Web toggle button ─── */
+
+#toggleCausality {
+    background: linear-gradient(
+        135deg,
+        rgba(200, 180, 255, 0.2) 0%,
+        rgba(255, 200, 220, 0.12) 50%,
+        rgba(180, 220, 255, 0.2) 100%
+    );
+    border: 1px solid rgba(200, 180, 255, 0.35);
+    color: rgba(230, 220, 255, 0.95);
+    font-weight: 500;
+    letter-spacing: 0.2px;
+    transition: all 0.3s ease;
+}
+
+#toggleCausality:hover {
+    background: linear-gradient(
+        135deg,
+        rgba(220, 200, 255, 0.35) 0%,
+        rgba(255, 220, 240, 0.2) 50%,
+        rgba(200, 240, 255, 0.35) 100%
+    );
+    border-color: rgba(220, 200, 255, 0.55);
+    box-shadow:
+        0 0 12px rgba(200, 180, 255, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}

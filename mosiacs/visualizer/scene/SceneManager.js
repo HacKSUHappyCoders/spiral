@@ -18,6 +18,8 @@ class SceneManager {
             useHighPrecisionFloats: false,
             // Reduce stencil overhead
             stencil: false,
+            // Use hardware scaling for better resize performance
+            adaptToDeviceRatio: false,
         });
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.clearColor = new BABYLON.Color4(0.1, 0.1, 0.18, 1);
@@ -30,6 +32,10 @@ class SceneManager {
         // Auto-freeze materials that don't change
         this.scene.autoClear = true;
         this.scene.autoClearDepthAndStencil = true;
+        // Pointer-move is expensive; limit pick frequency
+        this.scene.pointerMovePredicate = (mesh) => mesh._buildingData != null;
+        // Skip non-pickable meshes during picking (avoids iterating labels, tubes, etc.)
+        this.scene.skipPointerMovePicking = false;
 
         // Create camera — positioned to look DOWN at the descending spiral
         this.camera = new BABYLON.ArcRotateCamera(
@@ -41,9 +47,9 @@ class SceneManager {
             this.scene
         );
         this.camera.attachControl(this.canvas, true);
-        this.camera.lowerRadiusLimit = 10;
-        this.camera.upperRadiusLimit = 150;
-        this.camera.wheelPrecision = 5;
+        this.camera.lowerRadiusLimit = 5;
+        this.camera.upperRadiusLimit = 500;
+        this.camera.wheelPrecision = 3;
         this.camera.panningSensibility = 200;
 
         this._setupLighting();
@@ -102,7 +108,8 @@ class SceneManager {
     _setupGlowLayer() {
         const glowLayer = new BABYLON.GlowLayer("glow", this.scene, {
             mainTextureSamples: 1,       // lower sample count for performance
-            blurKernelSize: 32,          // smaller blur for speed
+            blurKernelSize: 16,          // smaller blur for speed (reduced from 32)
+            mainTextureFixedSize: 256,   // fixed-size render target for perf
         });
         glowLayer.intensity = 0.7;
     }
@@ -117,20 +124,26 @@ class SceneManager {
     }
 
     /**
-     * Handle window resize
+     * Handle window resize — debounced to avoid excessive engine.resize() calls
      */
     _setupResizeHandler() {
+        let resizeTimeout = null;
         window.addEventListener('resize', () => {
-            this.engine.resize();
+            if (resizeTimeout) clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                this.engine.resize();
+                resizeTimeout = null;
+            }, 100);
         });
     }
 
     /**
-     * Reset camera to default position — looking at the spiral city from above
+     * Reset camera to default position — looking DOWN upon the spiral
+     * mosaic from a bird's-eye view, zoomed out to see the whole city.
      */
     resetCamera() {
-        this.camera.setPosition(new BABYLON.Vector3(20, 25, 20));
-        this.camera.setTarget(new BABYLON.Vector3(0, 5, 0));
+        this.camera.setPosition(new BABYLON.Vector3(5, 65, 5));
+        this.camera.setTarget(new BABYLON.Vector3(0, 0, 0));
     }
 
     /**

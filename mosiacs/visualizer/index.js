@@ -48,6 +48,9 @@ class CodeVisualizer {
         this.galaxyWarpManager = new GalaxyWarpManager(scene, this.sceneManager, this.cityRenderer);
         this.explodeManager.galaxyWarpManager = this.galaxyWarpManager;
 
+        // Causality web renderer (Phase 3 Part 3)
+        this.causalityRenderer = new CausalityRenderer(scene, this.cityRenderer);
+
         return this;
     }
 
@@ -61,6 +64,11 @@ class CodeVisualizer {
         // Clear any active galaxy warp
         if (this.galaxyWarpManager) {
             this.galaxyWarpManager.clear();
+        }
+
+        // Clear causality web
+        if (this.causalityRenderer) {
+            this.causalityRenderer.clear();
         }
 
         // Parse the trace
@@ -122,6 +130,16 @@ class CodeVisualizer {
         const scene = this.sceneManager.getScene();
         scene.animationsEnabled = !scene.animationsEnabled;
         return scene.animationsEnabled;
+    }
+
+    // ─── Causality web (Phase 3 Part 3) ────────────────────────────
+
+    toggleCausality() {
+        return this.causalityRenderer.toggle();
+    }
+
+    isCausalityVisible() {
+        return this.causalityRenderer.isVisible();
     }
 
     // ─── UI helpers ────────────────────────────────────────────────
