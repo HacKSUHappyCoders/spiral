@@ -819,36 +819,19 @@ class CityRenderer {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ─── Memory Layer ──────────────────────────────────────────────
+    // ─── Memory Layer (disabled — stack address reuse makes this
+    //     misleading for C programs) ────────────────────────────────
     // ═══════════════════════════════════════════════════════════════
 
     _renderMemoryLayer(memoryNodes) {
         this.memoryLines.forEach(l => l.dispose());
         this.memoryLines = [];
-
-        memoryNodes.forEach(node => {
-            if (node.variables.size < 2) return;
-            const positions = [];
-            node.variables.forEach(varKey => {
-                const entry = this.variableMeshes.get(varKey);
-                if (entry && entry.mesh) positions.push(entry.mesh.position.clone());
-            });
-            if (positions.length < 2) return;
-
-            for (let i = 0; i < positions.length - 1; i++) {
-                const p1 = positions[i].clone(); p1.y = -0.5;
-                const p2 = positions[i + 1].clone(); p2.y = -0.5;
-                const line = BABYLON.MeshBuilder.CreateTube(`memLine_${node.address}_${i}`, {
-                    path: [p1, p2], radius: 0.06, sideOrientation: BABYLON.Mesh.DOUBLESIDE
-                }, this.scene);
-                const mat = new BABYLON.StandardMaterial(`memLineMat_${node.address}_${i}`, this.scene);
-                mat.emissiveColor = new BABYLON.Color3(0.3, 0.8, 0.3);
-                mat.alpha = 0.4;
-                line.material = mat;
-                line.isPickable = false;
-                this.memoryLines.push(line);
-            }
-        });
+        // Intentionally empty: the old memory-layer drew floor-level
+        // lines between variables sharing a memory address. In C
+        // programs stack addresses are heavily reused, so this
+        // produced a tangle of meaningless lines at the bottom of
+        // the scene. READ-based causality strands now convey actual
+        // data-flow relationships far more accurately.
     }
 
     // ═══════════════════════════════════════════════════════════════
