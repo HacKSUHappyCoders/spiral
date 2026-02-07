@@ -108,6 +108,20 @@ class CityRenderer {
         return this._slotMap.get(key);
     }
 
+    /**
+     * Compute the tangent angle (rotation around Y) at a given spiral slot
+     * so buildings can be oriented to follow the spiral curve.
+     */
+    _spiralTangentAngle(slot) {
+        const angle = slot * this.spiralAngleStep;
+        const radius = this.spiralRadiusStart + slot * this.spiralRadiusGrowth;
+        const dx = -Math.sin(angle) * this.spiralAngleStep * radius
+                  + Math.cos(angle) * this.spiralRadiusGrowth;
+        const dz =  Math.cos(angle) * this.spiralAngleStep * radius
+                  + Math.sin(angle) * this.spiralRadiusGrowth;
+        return Math.atan2(dx, dz);
+    }
+
     // ─── Main render entry ─────────────────────────────────────────
 
     render(snapshot) {
@@ -164,7 +178,7 @@ class CityRenderer {
             if (!this.functionMeshes.has(fn.key)) {
                 const slot = this._slotFor(fn.key);
                 const pos = this._spiralPosition(slot);
-                this.functionMeshes.set(fn.key, this._createFunctionDistrict(fn, pos));
+                this.functionMeshes.set(fn.key, this._createFunctionDistrict(fn, pos, slot));
             }
             const isOnStack = callStack.includes(fn.key);
             this._updateFunctionState(this.functionMeshes.get(fn.key), fn, isOnStack);
@@ -174,9 +188,10 @@ class CityRenderer {
         });
     }
 
-    _createFunctionDistrict(fn, pos) {
+    _createFunctionDistrict(fn, pos, slot) {
         const height = 4 + fn.depth * 2.5;
         const width = 3.5;
+        const tangentAngle = this._spiralTangentAngle(slot);
 
         const mesh = BABYLON.MeshBuilder.CreateCylinder(`building_${fn.key}`, {
             height, diameterTop: width * 0.5, diameterBottom: width, tessellation: 4, subdivisions: 1
@@ -185,6 +200,7 @@ class CityRenderer {
             .multiply(BABYLON.Matrix.Translation(0, height / 2, 0));
         mesh.bakeTransformIntoVertices(bake);
         mesh.position = pos.clone();
+        mesh.rotation.y = tangentAngle;
 
         const color = { r: 0.8, g: 0.2, b: 0.2, a: 0.85 };
         mesh.material = this._glowMaterial(`fnMat_${fn.key}`, color);
@@ -194,6 +210,7 @@ class CityRenderer {
         }, this.scene);
         cap.position = pos.clone();
         cap.position.y += height + 0.15;
+        cap.rotation.y = tangentAngle;
         cap.material = this._glowMaterial(`fnCapMat_${fn.key}`, {
             r: Math.min(color.r * 1.5, 1), g: Math.min(color.g * 1.5, 1),
             b: Math.min(color.b * 1.5, 1), a: 0.9
@@ -251,7 +268,7 @@ class CityRenderer {
             if (!this.variableMeshes.has(v.key)) {
                 const slot = this._slotFor(v.key);
                 const pos = this._spiralPosition(slot);
-                this.variableMeshes.set(v.key, this._createVariableHouse(v, pos));
+                this.variableMeshes.set(v.key, this._createVariableHouse(v, pos, slot));
             }
             this._updateVariableState(this.variableMeshes.get(v.key), v);
         });
@@ -260,15 +277,17 @@ class CityRenderer {
         });
     }
 
-    _createVariableHouse(v, pos) {
+    _createVariableHouse(v, pos, slot) {
         const height = 2;
         const width = 1.4;
+        const tangentAngle = this._spiralTangentAngle(slot);
 
         const mesh = BABYLON.MeshBuilder.CreateBox(`building_${v.key}`, {
             height, width, depth: width
         }, this.scene);
         mesh.position = pos.clone();
         mesh.position.y += height / 2;
+        mesh.rotation.y = tangentAngle;
 
         const color = { r: 0.2, g: 0.4, b: 0.8, a: 0.85 };
         mesh.material = this._glowMaterial(`varMat_${v.key}`, color);
@@ -279,6 +298,7 @@ class CityRenderer {
         roof.bakeTransformIntoVertices(BABYLON.Matrix.RotationY(Math.PI / 4));
         roof.position = pos.clone();
         roof.position.y += height + 0.35;
+        roof.rotation.y = tangentAngle;
         roof.material = this._glowMaterial(`varRoofMat_${v.key}`, {
             r: Math.min(color.r * 1.4, 1), g: Math.min(color.g * 1.4, 1),
             b: Math.min(color.b * 1.4, 1), a: 0.9
@@ -338,7 +358,7 @@ class CityRenderer {
             if (!this.loopMeshes.has(loop.key)) {
                 const slot = this._slotFor(loop.key);
                 const pos = this._spiralPosition(slot);
-                this.loopMeshes.set(loop.key, this._createLoopFactory(loop, pos));
+                this.loopMeshes.set(loop.key, this._createLoopFactory(loop, pos, slot));
             }
             this._updateLoopState(this.loopMeshes.get(loop.key), loop);
         });
@@ -347,15 +367,17 @@ class CityRenderer {
         });
     }
 
-    _createLoopFactory(loop, pos) {
+    _createLoopFactory(loop, pos, slot) {
         const height = 3;
         const width = 2.6;
+        const tangentAngle = this._spiralTangentAngle(slot);
 
         const mesh = BABYLON.MeshBuilder.CreateCylinder(`building_${loop.key}`, {
             height, diameterTop: width * 0.75, diameterBottom: width, tessellation: 6
         }, this.scene);
         mesh.position = pos.clone();
         mesh.position.y += height / 2;
+        mesh.rotation.y = tangentAngle;
 
         const color = { r: 0.6, g: 0.2, b: 0.8, a: 0.85 };
         mesh.material = this._glowMaterial(`loopMat_${loop.key}`, color);
@@ -365,7 +387,8 @@ class CityRenderer {
         }, this.scene);
         chimney.position = pos.clone();
         chimney.position.y += height + 0.65;
-        chimney.position.x += 0.7;
+        chimney.position.x += 0.7 * Math.cos(tangentAngle);
+        chimney.position.z += 0.7 * Math.sin(tangentAngle);
         chimney.material = this._glowMaterial(`loopChimneyMat_${loop.key}`,
             { r: 0.4, g: 0.15, b: 0.6, a: 0.9 });
 
@@ -422,7 +445,7 @@ class CityRenderer {
             if (!this.branchMeshes.has(br.key)) {
                 const slot = this._slotFor(br.key);
                 const pos = this._spiralPosition(slot);
-                this.branchMeshes.set(br.key, this._createBranchIntersection(br, pos));
+                this.branchMeshes.set(br.key, this._createBranchIntersection(br, pos, slot));
             }
             this._updateBranchState(this.branchMeshes.get(br.key), br);
         });
@@ -431,9 +454,10 @@ class CityRenderer {
         });
     }
 
-    _createBranchIntersection(br, pos) {
+    _createBranchIntersection(br, pos, slot) {
         const height = 2.2;
         const width = 2.2;
+        const tangentAngle = this._spiralTangentAngle(slot);
 
         const mesh = BABYLON.MeshBuilder.CreateCylinder(`building_${br.key}`, {
             height, diameterTop: 0.3, diameterBottom: width, tessellation: 4
@@ -442,12 +466,13 @@ class CityRenderer {
             .multiply(BABYLON.Matrix.Translation(0, height / 2, 0));
         mesh.bakeTransformIntoVertices(bake);
         mesh.position = pos.clone();
+        mesh.rotation.y = tangentAngle;
 
         const color = { r: 0.9, g: 0.4, b: 0.2, a: 0.85 };
         mesh.material = this._glowMaterial(`branchMat_${br.key}`, color);
 
-        const truePath = this._createPathIndicator(`brTrue_${br.key}`, pos, 1.6, Math.PI / 6, true);
-        const falsePath = this._createPathIndicator(`brFalse_${br.key}`, pos, 1.6, -Math.PI / 6, false);
+        const truePath = this._createPathIndicator(`brTrue_${br.key}`, pos, 1.6, tangentAngle + Math.PI / 6, true);
+        const falsePath = this._createPathIndicator(`brFalse_${br.key}`, pos, 1.6, tangentAngle - Math.PI / 6, false);
 
         this._animateScaleIn(mesh);
 
