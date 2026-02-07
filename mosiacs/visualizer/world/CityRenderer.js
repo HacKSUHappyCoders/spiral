@@ -895,6 +895,7 @@ class CityRenderer {
                             entry.truePath, entry.falsePath];
             for (const m of meshes) {
                 if (m && !m._isFrozen) {
+                    m.computeWorldMatrix(true); // ensure world matrix is up to date
                     m.freezeWorldMatrix();
                     m._isFrozen = true;
                 }

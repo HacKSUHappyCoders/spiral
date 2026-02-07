@@ -26,7 +26,7 @@ class GalaxyWarpManager {
         this._galaxyStack = [];
 
         // Offset distance — how far from the main spiral the galaxy spawns
-        this.galaxyOffset = 120;
+        this.galaxyOffset = 200;
 
         // Warp line
         this._warpLine = null;
@@ -69,6 +69,10 @@ class GalaxyWarpManager {
         if (entity.childStepIndices && entity.childStepIndices.length > 0) return true;
         // Galaxy buildings have _galaxyChildIndices (relative to their sub-trace)
         if (buildingMesh._galaxyChildIndices && buildingMesh._galaxyChildIndices.length > 0) return true;
+        // Galaxy buildings for calls/loops/conditions may have step indices that indicate sub-steps
+        if (entity.type === 'call' || entity.type === 'loop' || entity.type === 'condition') {
+            if (entity.stepIndices && entity.stepIndices.length > 1) return true;
+        }
         return false;
     }
 
@@ -91,11 +95,53 @@ class GalaxyWarpManager {
 
         // Determine the sub-trace for this galaxy
         let subTrace;
-        if (buildingMesh._galaxySubTrace && buildingMesh._galaxyChildIndices) {
+        if (buildingMesh._galaxySubTrace && buildingMesh._galaxyChildIndices && buildingMesh._galaxyChildIndices.length > 0) {
             // Recursive warp: galaxy building → use its stored sub-trace slice
             const parentSubTrace = buildingMesh._galaxySubTrace;
             const childIndices = buildingMesh._galaxyChildIndices;
             subTrace = childIndices.map(idx => parentSubTrace[idx]).filter(Boolean);
+        } else if (buildingMesh._galaxySubTrace && entity.stepIndices && entity.stepIndices.length > 0) {
+            // Galaxy building without explicit child indices but with stepIndices
+            // Use a broader range: from the first step index to the end of the
+            // entity's scope in the parent sub-trace
+            const parentSubTrace = buildingMesh._galaxySubTrace;
+            const firstIdx = entity.stepIndices[0];
+            
+            // For calls, collect all steps following the call until matching RETURN
+            if (entity.type === 'call') {
+                const callStep = parentSubTrace[firstIdx];
+                const callDepth = Number(callStep && callStep.depth) || 0;
+                const children = [];
+                let callBalance = 1; // We've seen 1 CALL, need to match its RETURN
+                for (let j = firstIdx + 1; j < parentSubTrace.length; j++) {
+                    const step = parentSubTrace[j];
+                    if (!step) continue;
+                    const d = Number(step.depth) || 0;
+                    // Track nested calls to match the right RETURN
+                    if (step.type === 'CALL' && d <= callDepth) callBalance++;
+                    if (step.type === 'RETURN' && d <= callDepth) {
+                        callBalance--;
+                        if (callBalance <= 0) {
+                            children.push(parentSubTrace[j]);
+                            break;
+                        }
+                    }
+                    if (d < callDepth) break;
+                    children.push(parentSubTrace[j]);
+                }
+                subTrace = children;
+            } else {
+                // For loops/conditions, use step indices to gather surrounding steps
+                const minIdx = Math.min(...entity.stepIndices);
+                const maxIdx = Math.max(...entity.stepIndices);
+                // Expand range to include child steps between the entity's steps
+                const expandedEnd = Math.min(maxIdx + 20, parentSubTrace.length - 1);
+                const collected = [];
+                for (let j = minIdx; j <= expandedEnd; j++) {
+                    if (parentSubTrace[j]) collected.push(parentSubTrace[j]);
+                }
+                subTrace = collected;
+            }
         } else {
             // Main-spiral building → use the full trace with childStepIndices
             const trace = this.mainCityRenderer._lastTrace || [];
@@ -119,11 +165,11 @@ class GalaxyWarpManager {
         const dirX = sourcePos.x || 1;
         const dirZ = sourcePos.z || 1;
         const dirLen = Math.sqrt(dirX * dirX + dirZ * dirZ) || 1;
-        const offset = this.galaxyOffset + stackDepth * 30;
+        const offset = this.galaxyOffset + stackDepth * 60;
         const galaxyCenter = new BABYLON.Vector3(
-            (dirX / dirLen) * offset,
-            sourcePos.y + 5 + stackDepth * 10,
-            (dirZ / dirLen) * offset
+            sourcePos.x + (dirX / dirLen) * offset,
+            sourcePos.y + 10 + stackDepth * 15,
+            sourcePos.z + (dirZ / dirLen) * offset
         );
 
         // Get building color for the warp line
@@ -383,8 +429,9 @@ class GalaxyWarpManager {
             const childIndices = entityChildMap.get(i);
             if (childIndices && childIndices.length > 0) {
                 mesh._galaxyChildIndices = childIndices;
-                mesh._galaxySubTrace = subTrace;
             }
+            // Always attach the sub-trace so recursive warping can use it
+            mesh._galaxySubTrace = subTrace;
 
             meshes.push(mesh);
         }
@@ -412,6 +459,13 @@ class GalaxyWarpManager {
         this._galaxyMeshes = [...meshes, ...this._galaxyExtraMeshes];
         this._galaxySpiralTube = spiralTube;
 
+        // ── Render a causality web within the galaxy ──
+        const causalityMeshes = this._renderGalaxyCausalityWeb(subTrace, entities, meshes.filter(m => m._isGalaxyBuilding));
+        if (causalityMeshes.length > 0) {
+            this._galaxyMeshes.push(...causalityMeshes);
+            this._galaxyExtraMeshes.push(...causalityMeshes);
+        }
+
         // Clear pending timers from any previous galaxy
         this._pendingTimers.forEach(id => clearTimeout(id));
         this._pendingTimers = [];
@@ -438,8 +492,10 @@ class GalaxyWarpManager {
             const timerId = setTimeout(() => {
                 if (!mesh.isDisposed()) {
                     this.scene.beginDirectAnimation(mesh, [popAnim], 0, 15, false, 1.0, () => {
-                        // Freeze world matrix once animation is done for perf
+                        // Ensure final scale is exactly 1 and refresh bounding info for picking
                         if (!mesh.isDisposed()) {
+                            mesh.scaling = new BABYLON.Vector3(1, 1, 1);
+                            mesh.refreshBoundingInfo();
                             mesh.freezeWorldMatrix();
                         }
                     });
@@ -485,19 +541,31 @@ class GalaxyWarpManager {
             if (!firstStep) continue;
 
             const children = [];
-            const startDepth = firstStep.depth || 0;
+            const startDepth = Number(firstStep.depth) || 0;
+            const entityName = firstStep.name || firstStep.subject || '';
+            let callBalance = 1; // used only for call entities
 
             // Walk forward from the first step to collect children
             for (let j = firstStepIdx + 1; j < subTrace.length; j++) {
                 const step = subTrace[j];
                 if (!step) continue;
 
-                const stepDepth = step.depth || 0;
+                const stepDepth = Number(step.depth) || 0;
 
-                // For calls: everything at depth > startDepth until RETURN
-                // at same depth
+                // For calls: collect everything until the matching RETURN.
+                // Track nested call balance to handle same-depth recursion.
                 if (entity.type === 'call') {
-                    if (stepDepth <= startDepth) break;
+                    if (step.type === 'CALL' && stepDepth <= startDepth) {
+                        callBalance++;
+                    }
+                    if (step.type === 'RETURN' && stepDepth <= startDepth) {
+                        callBalance--;
+                        if (callBalance <= 0) {
+                            children.push(j); // include the RETURN itself
+                            break;
+                        }
+                    }
+                    if (stepDepth < startDepth) break;
                     children.push(j);
                 }
                 // For loops: steps on the same or deeper depth until
@@ -505,8 +573,12 @@ class GalaxyWarpManager {
                 else if (entity.type === 'loop') {
                     if (stepDepth < startDepth) break;
                     if (stepDepth === startDepth &&
-                        (step.type === 'CALL' || step.type === 'LOOP' || step.type === 'CONDITION') &&
+                        (step.type === 'CALL' || step.type === 'CONDITION') &&
                         j !== firstStepIdx) break;
+                    // For a new LOOP event at same depth with a different condition, break
+                    if (stepDepth === startDepth && step.type === 'LOOP' &&
+                        j !== firstStepIdx &&
+                        step.condition !== firstStep.condition) break;
                     children.push(j);
                 }
                 // For conditions: a few steps following the condition
@@ -526,6 +598,163 @@ class GalaxyWarpManager {
         }
 
         return childMap;
+    }
+
+    /**
+     * Render a causality web within a galaxy.
+     * Finds READ→ASSIGN relationships in the sub-trace and draws arc lines
+     * between the corresponding galaxy building meshes.
+     */
+    _renderGalaxyCausalityWeb(subTrace, entities, buildingMeshes) {
+        const createdMeshes = [];
+        if (!subTrace || subTrace.length === 0 || buildingMeshes.length === 0) return createdMeshes;
+
+        // Build a map: variable name+address → entity index (for variable entities)
+        const varEntityMap = new Map();
+        for (let i = 0; i < entities.length; i++) {
+            const ent = entities[i];
+            if (ent.type === 'variable') {
+                const key = `${ent.subject || ent.label}|${ent.address || ''}`;
+                varEntityMap.set(key, i);
+                // Also map by name alone for broader matching
+                if (!varEntityMap.has(ent.subject || ent.label)) {
+                    varEntityMap.set(ent.subject || ent.label, i);
+                }
+            }
+        }
+
+        // Walk through the sub-trace looking for READ→ASSIGN patterns
+        const links = [];
+        const seen = new Set();
+        const pendingReads = [];
+
+        for (let i = 0; i < subTrace.length; i++) {
+            const step = subTrace[i];
+            if (!step) continue;
+
+            if (step.type === 'READ') {
+                pendingReads.push({
+                    name: step.name || step.subject || '',
+                    address: step.address || '',
+                    line: Number(step.line) || 0,
+                    idx: i
+                });
+            } else if (step.type === 'ASSIGN' || step.type === 'DECL') {
+                const targetName = step.name || step.subject || '';
+                const targetAddr = step.address || '';
+                const targetLine = Number(step.line) || 0;
+
+                // Find the target entity
+                let targetEI = varEntityMap.get(`${targetName}|${targetAddr}`);
+                if (targetEI === undefined) targetEI = varEntityMap.get(targetName);
+                if (targetEI === undefined) continue;
+
+                // Match pending reads
+                const remaining = [];
+                for (const pr of pendingReads) {
+                    const lineDist = Math.abs(targetLine - pr.line);
+                    const stepDist = i - pr.idx;
+                    if (lineDist <= 2 || stepDist <= 5) {
+                        let sourceEI = varEntityMap.get(`${pr.name}|${pr.address}`);
+                        if (sourceEI === undefined) sourceEI = varEntityMap.get(pr.name);
+                        if (sourceEI !== undefined && sourceEI !== targetEI) {
+                            const linkId = `${sourceEI}->${targetEI}`;
+                            if (!seen.has(linkId)) {
+                                seen.add(linkId);
+                                links.push({ fromEI: sourceEI, toEI: targetEI });
+                            }
+                        }
+                    } else if (stepDist <= 20) {
+                        remaining.push(pr);
+                    }
+                    // else too old, discard
+                }
+                pendingReads.length = 0;
+                pendingReads.push(...remaining);
+            }
+        }
+
+        // Also use heuristic: if ASSIGN uses data from variables on the same/adjacent line
+        for (let i = 0; i < subTrace.length; i++) {
+            const step = subTrace[i];
+            if (!step || step.type !== 'ASSIGN') continue;
+            const targetName = step.name || step.subject || '';
+            const targetAddr = step.address || '';
+            const targetLine = Number(step.line) || 0;
+            let targetEI = varEntityMap.get(`${targetName}|${targetAddr}`);
+            if (targetEI === undefined) targetEI = varEntityMap.get(targetName);
+            if (targetEI === undefined) continue;
+
+            for (let j = i - 1; j >= Math.max(0, i - 6); j--) {
+                const prev = subTrace[j];
+                if (!prev) continue;
+                if (prev.type !== 'ASSIGN' && prev.type !== 'DECL') continue;
+                const prevName = prev.name || prev.subject || '';
+                const prevAddr = prev.address || '';
+                const prevLine = Number(prev.line) || 0;
+                if (Math.abs(targetLine - prevLine) > 1) continue;
+
+                let sourceEI = varEntityMap.get(`${prevName}|${prevAddr}`);
+                if (sourceEI === undefined) sourceEI = varEntityMap.get(prevName);
+                if (sourceEI === undefined || sourceEI === targetEI) continue;
+
+                const linkId = `${sourceEI}->${targetEI}`;
+                if (!seen.has(linkId)) {
+                    seen.add(linkId);
+                    links.push({ fromEI: sourceEI, toEI: targetEI });
+                }
+            }
+        }
+
+        if (links.length === 0) return createdMeshes;
+
+        // Render causality arcs
+        const allLines = [];
+        const allColors = [];
+
+        for (const link of links) {
+            const fromMesh = buildingMeshes[link.fromEI];
+            const toMesh = buildingMeshes[link.toEI];
+            if (!fromMesh || !toMesh) continue;
+
+            const fromPos = fromMesh.position;
+            const toPos = toMesh.position;
+
+            const midPoint = BABYLON.Vector3.Lerp(fromPos, toPos, 0.5);
+            const dist = BABYLON.Vector3.Distance(fromPos, toPos);
+            midPoint.y += dist * 0.15 + 0.5;
+
+            // 8-segment Bézier
+            const pts = [];
+            const segments = 8;
+            for (let s = 0; s <= segments; s++) {
+                const t = s / segments;
+                const x = (1 - t) * (1 - t) * fromPos.x + 2 * (1 - t) * t * midPoint.x + t * t * toPos.x;
+                const y = (1 - t) * (1 - t) * fromPos.y + 2 * (1 - t) * t * midPoint.y + t * t * toPos.y;
+                const z = (1 - t) * (1 - t) * fromPos.z + 2 * (1 - t) * t * midPoint.z + t * t * toPos.z;
+                pts.push(new BABYLON.Vector3(x, y, z));
+            }
+            const col = new BABYLON.Color4(0.7, 0.6, 0.9, 0.6);
+            const cols = new Array(pts.length).fill(col);
+            allLines.push(pts);
+            allColors.push(cols);
+        }
+
+        if (allLines.length > 0) {
+            const lineSystem = BABYLON.MeshBuilder.CreateLineSystem('galaxyCausalLines', {
+                lines: allLines,
+                colors: allColors
+            }, this.scene);
+            const lineMat = new BABYLON.StandardMaterial('galaxyCausalLineMat', this.scene);
+            lineMat.emissiveColor = new BABYLON.Color3(0.7, 0.6, 0.9);
+            lineMat.disableLighting = true;
+            lineSystem.material = lineMat;
+            lineSystem.isPickable = false;
+            lineSystem.freezeWorldMatrix();
+            createdMeshes.push(lineSystem);
+        }
+
+        return createdMeshes;
     }
 
     /**

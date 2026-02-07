@@ -33,12 +33,12 @@ class CodeParser {
                 name:       t.subject || '',                 // primary identifier
                 value:      t.value !== undefined ? String(t.value) : '',
                 address:    t.address || '0',
-                line:       t.line_number || 0,
-                depth:      t.stack_depth || 0,
+                line:       Number(t.line_number) || 0,      // ensure numeric
+                depth:      Number(t.stack_depth) || 0,      // ensure numeric
                 // New fields from JSON
                 subtype:    t.subtype || '',                 // e.g. "for", "else", "literal"
                 condition:  t.condition || '',               // e.g. "i<5", "sum < 10"
-                conditionResult: t.condition_result !== undefined ? t.condition_result : null,
+                conditionResult: t.condition_result !== undefined ? Number(t.condition_result) : null,
                 // READ-specific: the value that was read (format_spec in the raw trace)
                 readValue:  t.format_spec !== undefined ? String(t.format_spec) : '',
                 raw:        t

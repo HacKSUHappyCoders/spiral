@@ -229,6 +229,11 @@ class WorldState {
 
             this._registerMemoryNode(step.address, key);
         }
+
+        // Flush pending READs into read relations (DECL with a value is like ASSIGN)
+        if (step.value !== undefined && step.value !== '' && this._pendingReads.length > 0) {
+            this._flushPendingReads(step);
+        }
     }
 
     // ─── ASSIGN ────────────────────────────────────────────────────
@@ -264,15 +269,15 @@ class WorldState {
             readerName: step.name,
             readerAddress: step.address,
             readValue: step.readValue || step.value || '',
-            line: step.line,
+            line: Number(step.line) || 0,
             step: this.currentStep,
             scope
         });
 
-        // Prune pending reads that are too old (more than 20 steps back)
+        // Prune pending reads that are too old (more than 30 steps back)
         // to prevent unbounded growth
-        if (this._pendingReads.length > 50) {
-            const cutoff = this.currentStep - 20;
+        if (this._pendingReads.length > 80) {
+            const cutoff = this.currentStep - 30;
             this._pendingReads = this._pendingReads.filter(pr => pr.step >= cutoff);
         }
     }
@@ -281,12 +286,16 @@ class WorldState {
      * Flush pending READs into readRelations when an ASSIGN happens.
      * Each pending READ whose line matches the ASSIGN line produces a
      * relation from the read-source variable to the assign-target variable.
+     *
+     * We match reads that occurred on the same line, the line before, OR
+     * within the last 5 trace steps (to handle multi-line expressions
+     * and cases where line numbers are slightly off).
      */
     _flushPendingReads(assignStep) {
         if (this._pendingReads.length === 0) return;
 
         const scope = this.currentScope();
-        const assignLine = assignStep.line;
+        const assignLine = Number(assignStep.line) || 0;
 
         // Find the target variable house (the one being assigned)
         let targetKey = null;
@@ -297,20 +306,38 @@ class WorldState {
             }
         }
         if (!targetKey) {
-            this._pendingReads = [];
+            // Don't discard all pending reads — only clear old ones
+            const cutoff = this.currentStep - 20;
+            this._pendingReads = this._pendingReads.filter(pr => pr.step >= cutoff);
             return;
         }
 
-        // Match pending reads that are on the same line as this ASSIGN
+        // Match pending reads that are on the same line as this ASSIGN,
+        // within ±2 lines, OR within the last 5 steps (whichever is more generous)
         const remaining = [];
         for (const pr of this._pendingReads) {
-            if (pr.line === assignLine || pr.line === assignLine - 1) {
+            const readLine = Number(pr.line) || 0;
+            const lineDist = Math.abs(assignLine - readLine);
+            const stepDist = this.currentStep - pr.step;
+
+            // Match if: same/adjacent line, or within 5 steps
+            if (lineDist <= 2 || stepDist <= 5) {
                 // Find the source variable house for the read
                 let sourceKey = null;
                 for (const [k, v] of this.variableHouses) {
                     if (v.name === pr.readerName && v.address === pr.readerAddress && v.active) {
                         sourceKey = k;
-                        if (v.scope === scope) break;
+                        if (v.scope === scope || v.scope === pr.scope) break;
+                    }
+                }
+
+                // If we couldn't match by address, try by name alone within the same scope
+                if (!sourceKey) {
+                    for (const [k, v] of this.variableHouses) {
+                        if (v.name === pr.readerName && v.active) {
+                            sourceKey = k;
+                            if (v.scope === scope) break;
+                        }
                     }
                 }
 
