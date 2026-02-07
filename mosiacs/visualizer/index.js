@@ -173,6 +173,15 @@ class CodeVisualizer {
     }
 
     /**
+     * Toggle debug column mode for shattered pieces
+     * When enabled: shards fly to side column in front of camera for easy debugging
+     * When disabled: shards explode in rings around the building (original behavior)
+     */
+    toggleDebugColumnMode() {
+        return this.explodeManager.toggleDebugMode();
+    }
+
+    /**
      * Toggle animation
      */
     toggleAnimation() {

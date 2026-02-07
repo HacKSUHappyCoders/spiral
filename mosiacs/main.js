@@ -40,7 +40,19 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleBtn.textContent = isAnimating ? 'Pause Animation' : 'Resume Animation';
     });
 
+    // Toggle debug column mode button
+    const debugBtn = document.getElementById('toggleDebugMode');
+    debugBtn.classList.add('active'); // Start with active state since debug mode is ON by default
+    debugBtn.addEventListener('click', () => {
+        const debugMode = visualizer.toggleDebugColumnMode();
+        debugBtn.textContent = debugMode ? '🐛 Debug Column: ON' : '🐛 Debug Column: OFF';
+        debugBtn.classList.toggle('active', debugMode);
+        console.log(`Debug Column Mode: ${debugMode ? 'ON' : 'OFF'}`);
+    });
+
     // Show welcome message
     console.log('🎨 Code Mosaic Visualizer initialized!');
     console.log('Click "Load Example Code" to see the visualization.');
+    console.log('Click any building to explode and see variable data.');
+    console.log('Debug Column Mode is ON by default - shards will fly to the side of your screen!');
 });
