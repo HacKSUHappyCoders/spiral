@@ -79,6 +79,12 @@ class CodeVisualizer {
         this.cityRenderer.clear();
         this._removeCodePanel();
 
+        // Clear any existing error notification
+        const errorPanel = document.getElementById('errorNotification');
+        if (errorPanel) {
+            errorPanel.remove();
+        }
+
         // Clear any active galaxy warp
         if (this.galaxyWarpManager) {
             this.galaxyWarpManager.clear();
@@ -489,14 +495,19 @@ class CodeVisualizer {
 
         CodeParser.upload(file)
             .then(json => {
-                if (json.success === false) {
-                    const err = json.error || {};
-                    alert(`Error (${err.stage || 'unknown'}): ${err.message || 'Unknown error'}`);
-                    return;
-                }
+                // Always visualize, even if there are errors
+                // The visualizer will show error indicators for compile/runtime errors
+                // if (json.success === false) {
+                //     const err = json.error || {};
+                //     alert(`Error (${err.stage || 'unknown'}): ${err.message || 'Unknown error'}`);
+                //     return;
+                // }
                 this.visualize(json);
             })
-            .catch(err => alert('Save failed: ' + err.message))
+            .catch(err => {
+                console.error('Save failed:', err);
+                // Don't show alert, just log to console
+            })
             .finally(() => {
                 if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save & Run'; }
             });

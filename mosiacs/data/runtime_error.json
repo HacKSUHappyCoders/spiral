@@ -1,0 +1,58 @@
+{
+  "success": false,
+  "error": {
+    "stage": "runtime",
+    "message": "Program exited with code -8"
+  },
+  "metadata": {
+    "file_name": "runtime_error.c",
+    "file_path": "/tmp/tmp69v74o3p/runtime_error.c",
+    "file_size": "143",
+    "file_mode": "-rw-r--r--",
+    "modified": "2026-02-07 18:29:02",
+    "accessed": "2026-02-07 18:29:02",
+    "created": "2026-02-07 18:29:02",
+    "language": "C",
+    "total_lines": "9",
+    "non_blank_lines": "7",
+    "num_includes": "1",
+    "num_comments": "1",
+    "num_functions": "1",
+    "function_names": "main",
+    "num_variables": "2",
+    "num_assignments": "0",
+    "num_calls": "1",
+    "num_returns": "1",
+    "num_loops": "0",
+    "num_branches": "0",
+    "max_nesting_depth": "1",
+    "includes": "stdio.h",
+    "defined_functions": "main"
+  },
+  "traces": [
+    {
+      "type": "CALL",
+      "subject": "main",
+      "stack_depth": "1",
+      "id": 0
+    },
+    {
+      "type": "DECL",
+      "subject": "a",
+      "value": "10",
+      "address": "0x7ffecd0c544c",
+      "line_number": "4",
+      "stack_depth": "1",
+      "id": 1
+    },
+    {
+      "type": "DECL",
+      "subject": "b",
+      "value": "0",
+      "address": "0x7ffecd0c5448",
+      "line_number": "5",
+      "stack_depth": "1",
+      "id": 2
+    }
+  ]
+}

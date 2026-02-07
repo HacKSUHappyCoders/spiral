@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     uploadBtn.addEventListener('click', () => {
         const file = fileInput.files[0];
         if (!file) {
-            alert('Please select a .c or .py file first.');
+            console.warn('Please select a .c or .py file first.');
             return;
         }
         uploadBtn.disabled = true;
@@ -118,11 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Read source code text and upload in parallel
         Promise.all([file.text(), CodeParser.upload(file)])
             .then(([sourceCode, json]) => {
-                if (json.success === false) {
-                    const err = json.error || {};
-                    alert(`Error (${err.stage || 'unknown'}): ${err.message || 'Unknown error'}`);
-                    return;
-                }
                 visualizer.setSourceCode(sourceCode);
                 visualizer.visualize(json);
                 // Refresh the trace dropdown
@@ -136,7 +131,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 });
             })
-            .catch(err => alert('Upload failed: ' + err.message))
+            .catch(err => {
+                console.error('Upload failed:', err);
+                // Don't show alert, just log to console
+            })
             .finally(() => {
                 uploadBtn.disabled = false;
                 uploadBtn.textContent = 'Upload & Visualize';

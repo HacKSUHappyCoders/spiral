@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "error": {
+    "stage": "compile",
+    "message": "/tmp/tmpu26qro2t/output/instrumented_bad_syntax_c.c: In function \u2018main\u2019:\n/tmp/tmpu26qro2t/output/instrumented_bad_syntax_c.c:31:26: error: expected \u2018;\u2019 before \u2018printf\u2019\n   31 |     printf(\"Hello World\") // Missing semicolon\n      |                          ^\n      |                          ;\n   32 |     printf(\"%s\", \"RETURN\"); putchar(0); printf(\"%s\", \"literal\"); putchar(0); printf(\"%s\", \"0\"); putchar(0); printf(\"%s\", \"0\"); putchar(0); printf(\"%s\", \"5\"); putchar(0); printf(\"%d\", __stack_depth); putchar('\\n');\n      |     ~~~~~~"
+  },
+  "metadata": {},
+  "traces": []
+}

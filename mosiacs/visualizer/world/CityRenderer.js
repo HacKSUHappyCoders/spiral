@@ -300,24 +300,43 @@ class CityRenderer {
     }
 
     /**
-     * Check if this entity is the last step in the trace.
+     * Check if this entity is the last building created in the trace.
+     * For runtime errors, we need to mark the last building, not necessarily the last step
+     * (since the last step might be a READ, PARAM, etc. that doesn't create a building).
      * @param {object} entity - The building entity
-     * @returns {boolean} True if this is the last executed step
+     * @returns {boolean} True if this is the last building created
      */
     _isLastStep(entity) {
-        if (!this._lastTrace || this._lastTrace.length === 0) return false;
+        if (!this._lastSnapshot) return false;
 
-        const lastStep = this._lastTrace.length - 1;
+        // Find the highest step number among all entities in the snapshot
+        let maxStep = -1;
 
-        // Check various step fields that might indicate this is the last step
-        if (entity.enterStep === lastStep) return true;
-        if (entity.declStep === lastStep) return true;
-        if (entity.step === lastStep) return true;
-        if (entity.steps && entity.steps.length > 0) {
-            return entity.steps[entity.steps.length - 1] === lastStep;
+        // Check all entity types from the snapshot
+        const allEntities = [
+            ...(this._lastSnapshot.functions || []),
+            ...(this._lastSnapshot.variables || []),
+            ...(this._lastSnapshot.loops || []),
+            ...(this._lastSnapshot.whileLoops || []),
+            ...(this._lastSnapshot.branches || [])
+        ];
+
+        for (const e of allEntities) {
+            let entityStep = -1;
+            if (e.enterStep !== undefined) entityStep = Math.max(entityStep, e.enterStep);
+            if (e.declStep !== undefined) entityStep = Math.max(entityStep, e.declStep);
+            if (e.step !== undefined) entityStep = Math.max(entityStep, e.step);
+
+            maxStep = Math.max(maxStep, entityStep);
         }
 
-        return false;
+        // Check if this entity has the maximum step
+        let thisStep = -1;
+        if (entity.enterStep !== undefined) thisStep = Math.max(thisStep, entity.enterStep);
+        if (entity.declStep !== undefined) thisStep = Math.max(thisStep, entity.declStep);
+        if (entity.step !== undefined) thisStep = Math.max(thisStep, entity.step);
+
+        return thisStep === maxStep && maxStep >= 0;
     }
 
     /**
@@ -325,7 +344,7 @@ class CityRenderer {
      * @param {string} key - Unique key for the error indicator
      * @param {BABYLON.Vector3} pos - Position of the building
      * @param {number} height - Height of the building
-     * @returns {BABYLON.Mesh} The error indicator mesh
+     * @returns {Object} Object with {sphere, label} for the error indicator
      */
     _createErrorIndicator(key, pos, height) {
         // Create a glowing sphere
@@ -355,7 +374,7 @@ class CityRenderer {
         // Pulsing animation
         this._pulseAnimation(indicator);
 
-        return indicator;
+        return { sphere: indicator, label: errorLabel };
     }
 
     /**
@@ -626,38 +645,43 @@ class CityRenderer {
             return found ? minSlot : null;
         }
 
-        // For runtime errors without line numbers, find the last step's slot
+        // For runtime errors without line numbers, find the last building's slot
         if (this._error.stage === 'runtime' && this._lastTrace && this._lastTrace.length > 0) {
-            const lastStepIndex = this._lastTrace.length - 1;
             let maxSlot = -1;
-            let found = false;
+            let maxStep = -1;
 
             const allEntities = [
                 ...this.functionMeshes.entries(),
                 ...this.variableMeshes.entries(),
                 ...this.loopMeshes.entries(),
                 ...this.whileMeshes.entries(),
-                ...this.branchMeshes.entries()
+                ...this.branchMeshes.entries(),
+                ...this.blackHoleMeshes.entries()
             ];
 
+            // Find the building with the highest step number
             for (const [key, entry] of allEntities) {
                 const entity = entry.mesh?._entityData;
                 if (!entity) continue;
 
-                // Check if this entity corresponds to the last step
-                if (entity.enterStep === lastStepIndex ||
-                    entity.declStep === lastStepIndex ||
-                    entity.step === lastStepIndex) {
+                // Get the step number for this entity
+                let entityStep = -1;
+                if (entity.enterStep !== undefined) entityStep = Math.max(entityStep, entity.enterStep);
+                if (entity.declStep !== undefined) entityStep = Math.max(entityStep, entity.declStep);
+                if (entity.step !== undefined) entityStep = Math.max(entityStep, entity.step);
+
+                // Track the building with the highest step
+                if (entityStep > maxStep) {
+                    maxStep = entityStep;
                     const slot = this._slotMap.get(key);
-                    if (slot !== undefined && slot > maxSlot) {
+                    if (slot !== undefined) {
                         maxSlot = slot;
-                        found = true;
                     }
                 }
             }
 
-            // Return slot AFTER the last step for runtime errors
-            return found ? maxSlot + 1 : null;
+            // Return slot AFTER the last building for runtime errors
+            return maxSlot >= 0 ? maxSlot + 1 : null;
         }
 
         return null;
@@ -933,8 +957,11 @@ class CityRenderer {
 
         // Add exclamation mark indicator for exact error node
         let errorIndicator = null;
+        let errorLabel = null;
         if (this._isExactErrorNode(fn)) {
-            errorIndicator = this._createErrorIndicator(fn.key, pos.clone(), height);
+            const errorObj = this._createErrorIndicator(fn.key, pos.clone(), height);
+            errorIndicator = errorObj.sphere;
+            errorLabel = errorObj.label;
         }
 
         mesh._buildingData = {
@@ -947,7 +974,7 @@ class CityRenderer {
         mesh._trapHeight = height;
         mesh._entityData = fn;
 
-        return { mesh, cap, label, errorIndicator, height, color, type: 'function' };
+        return { mesh, cap, label, errorIndicator, errorLabel, height, color, type: 'function' };
     }
 
     _fnChildSteps(fn) {
@@ -1038,8 +1065,11 @@ class CityRenderer {
 
         // Add error indicator for exact error node
         let errorIndicator = null;
+        let errorLabel = null;
         if (this._isExactErrorNode(v)) {
-            errorIndicator = this._createErrorIndicator(v.key, pos.clone(), height);
+            const errorObj = this._createErrorIndicator(v.key, pos.clone(), height);
+            errorIndicator = errorObj.sphere;
+            errorLabel = errorObj.label;
         }
 
         mesh._buildingData = {
@@ -1052,7 +1082,7 @@ class CityRenderer {
         mesh._trapHeight = height;
         mesh._entityData = v;
 
-        return { mesh, roof, label, errorIndicator, height, color, type: 'variable' };
+        return { mesh, roof, label, errorIndicator, errorLabel, height, color, type: 'variable' };
     }
 
     _varChildSteps(v) {
@@ -1169,8 +1199,11 @@ class CityRenderer {
 
         // Add error indicator for exact error node
         let errorIndicator = null;
+        let errorLabel = null;
         if (this._isExactErrorNode(loop)) {
-            errorIndicator = this._createErrorIndicator(loop.key, pos.clone(), height);
+            const errorObj = this._createErrorIndicator(loop.key, pos.clone(), height);
+            errorIndicator = errorObj.sphere;
+            errorLabel = errorObj.label;
         }
 
         mesh._buildingData = {
@@ -1183,7 +1216,7 @@ class CityRenderer {
         mesh._trapHeight = height;
         mesh._entityData = loop;
 
-        return { mesh, chimney, label, errorIndicator, height, color, type: loopType };
+        return { mesh, chimney, label, errorIndicator, errorLabel, height, color, type: loopType };
     }
 
     _loopChildSteps(loop) {
@@ -1367,8 +1400,11 @@ class CityRenderer {
 
         // Add error indicator for exact error node
         let errorIndicator = null;
+        let errorLabel = null;
         if (this._isExactErrorNode(br)) {
-            errorIndicator = this._createErrorIndicator(br.key, pos.clone(), height);
+            const errorObj = this._createErrorIndicator(br.key, pos.clone(), height);
+            errorIndicator = errorObj.sphere;
+            errorLabel = errorObj.label;
         }
 
         mesh._buildingData = {
@@ -1386,7 +1422,7 @@ class CityRenderer {
         mesh._trapHeight = height;
         mesh._entityData = br;
 
-        return { mesh, truePath, falsePath, label, errorIndicator, height, color, type: 'branch' };
+        return { mesh, truePath, falsePath, label, errorIndicator, errorLabel, height, color, type: 'branch' };
     }
 
     _createPathIndicator(name, basePos, length, angle, isTrue) {
@@ -1522,7 +1558,7 @@ class CityRenderer {
 
     _disposeEntry(entry) {
         if (!entry) return;
-        const disposable = ['mesh', 'cap', 'roof', 'chimney', 'truePath', 'falsePath', 'label', 'typeLabel', 'disk', 'connection', 'border'];
+        const disposable = ['mesh', 'cap', 'roof', 'chimney', 'truePath', 'falsePath', 'label', 'typeLabel', 'disk', 'connection', 'border', 'errorIndicator', 'errorLabel'];
         disposable.forEach(k => {
             if (entry[k]) {
                 if (entry[k].material) entry[k].material.dispose();

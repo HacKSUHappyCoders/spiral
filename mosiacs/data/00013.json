@@ -5,13 +5,13 @@
     "message": "Program exited with code -8"
   },
   "metadata": {
-    "file_name": "a.c",
-    "file_path": "/mnt/c/Users/TJ/Documents/Code/Projects/changeme/parser/tests/a.c",
-    "file_size": "2833",
-    "file_mode": "-rwxrwxrwx",
-    "modified": "2026-02-07 13:36:16",
-    "accessed": "2026-02-07 13:36:16",
-    "created": "2026-02-07 13:36:16",
+    "file_name": "00013.c",
+    "file_path": "/tmp/tmp13gu_v3z/00013.c",
+    "file_size": "2824",
+    "file_mode": "-rw-r--r--",
+    "modified": "2026-02-07 19:00:33",
+    "accessed": "2026-02-07 19:00:33",
+    "created": "2026-02-07 19:00:33",
     "language": "C",
     "total_lines": "106",
     "non_blank_lines": "83",
@@ -46,8 +46,8 @@
     {
       "type": "DECL",
       "subject": "current_time",
-      "value": "1770489398",
-      "address": "0x7ffcc97d45e0",
+      "value": "1770490833",
+      "address": "0x7ffc17ff0cd8",
       "line_number": "43",
       "stack_depth": "1",
       "id": 2
@@ -87,7 +87,7 @@
       "type": "DECL",
       "subject": "sum",
       "value": "8",
-      "address": "0x7ffcc97d45c4",
+      "address": "0x7ffc17ff0cd4",
       "line_number": "49",
       "stack_depth": "1",
       "id": 7
@@ -120,7 +120,7 @@
       "type": "READ",
       "subject": "x",
       "format_spec": "4",
-      "address": "0x7ffcc97d459c",
+      "address": "0x7ffc17ff0b5c",
       "line_number": "13",
       "stack_depth": "2",
       "id": 11
@@ -129,7 +129,7 @@
       "type": "READ",
       "subject": "y",
       "format_spec": "7",
-      "address": "0x7ffcc97d4598",
+      "address": "0x7ffc17ff0b58",
       "line_number": "13",
       "stack_depth": "2",
       "id": 12
@@ -138,16 +138,16 @@
       "type": "DECL",
       "subject": "result",
       "value": "28",
-      "address": "0x7ffcc97d45a4",
+      "address": "0x7ffc17ff0b6c",
       "line_number": "13",
       "stack_depth": "2",
       "id": 13
     },
     {
       "type": "READ",
-      "subject": "result",
-      "format_spec": "28",
-      "address": "0x7ffcc97d45a4",
+      "subject": "x",
+      "format_spec": "0.000000",
+      "address": "0x7ffc17ff0b5c",
       "line_number": "14",
       "stack_depth": "2",
       "id": 14

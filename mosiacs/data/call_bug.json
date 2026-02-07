@@ -2,12 +2,12 @@
   "success": true,
   "metadata": {
     "file_name": "call_bug.c",
-    "file_path": "/tmp/tmpi6w0n1xo/call_bug.c",
+    "file_path": "/tmp/tmp1l9jlr5d/call_bug.c",
     "file_size": "223",
     "file_mode": "-rw-r--r--",
-    "modified": "2026-02-07 17:59:23",
-    "accessed": "2026-02-07 17:59:23",
-    "created": "2026-02-07 17:59:23",
+    "modified": "2026-02-07 18:29:21",
+    "accessed": "2026-02-07 18:29:21",
+    "created": "2026-02-07 18:29:21",
     "language": "C",
     "total_lines": "16",
     "non_blank_lines": "12",
@@ -21,7 +21,9 @@
     "num_returns": "3",
     "num_loops": "0",
     "num_branches": "0",
-    "max_nesting_depth": "1"
+    "max_nesting_depth": "1",
+    "includes": "stdio.h",
+    "defined_functions": "add,main,thisisdifferent"
   },
   "traces": [
     {
@@ -58,7 +60,7 @@
       "type": "DECL",
       "subject": "x",
       "value": "7",
-      "address": "0x7ffc8e30964c",
+      "address": "0x7ffc2ec1f86c",
       "line_number": "12",
       "stack_depth": "1",
       "id": 4
@@ -99,7 +101,7 @@
       "type": "DECL",
       "subject": "y",
       "value": "6",
-      "address": "0x7ffc8e309648",
+      "address": "0x7ffc2ec1f868",
       "line_number": "13",
       "stack_depth": "1",
       "id": 9
@@ -113,5 +115,5 @@
       "id": 10
     }
   ],
-  "seed": 11011024768132560505
+  "seed": 11592589694876404407
 }
