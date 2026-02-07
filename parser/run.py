@@ -85,25 +85,15 @@ def _normalize(raw_output):
     return result.get("metadata", {}), result.get("traces", [])
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Instrument, compile, run, and normalize.")
-    ap.add_argument("input_file", help="Source file (.c or .py)")
-    ap.add_argument("-o", "--output", help="Output JSON path (default: stdout)")
-    args = ap.parse_args()
-
-    if not os.path.exists(args.input_file):
-        result = _make_error("input", f"File not found: {args.input_file}")
-        _emit(result, args.output)
-        return 1
-
-    paths = _derived_paths(args.input_file)
+def deal(input, output=None):
+    paths = _derived_paths(input)
 
     # ── Instrument ──────────────────────────────────────────────
     try:
-        code, ext = _instrument(args.input_file)
+        code, ext = _instrument(input)
     except Exception as e:
         result = _make_error("instrument", str(e))
-        _emit(result, args.output)
+        _emit(result, output)
         return 1
 
     with open(paths["instrumented"], "w") as f:
@@ -119,11 +109,11 @@ def main():
             _compile(paths["instrumented"], paths["exe"])
         except subprocess.TimeoutExpired:
             result = _make_error("compile", "Compilation timed out")
-            _emit(result, args.output)
+            _emit(result, output)
             return 1
         except RuntimeError as e:
             result = _make_error("compile", str(e))
-            _emit(result, args.output)
+            _emit(result, output)
             return 1
         cmd = [paths["exe"]]
 
@@ -131,7 +121,7 @@ def main():
         rc, stdout, stderr = _run(cmd)
     except subprocess.TimeoutExpired:
         result = _make_error("runtime", "Program timed out (30s limit)")
-        _emit(result, args.output)
+        _emit(result, output)
         return 1
 
     # Save raw trace output
@@ -143,7 +133,7 @@ def main():
         metadata, traces = _normalize(stdout)
     except Exception as e:
         result = _make_error("normalize", f"Failed to parse trace output: {e}")
-        _emit(result, args.output)
+        _emit(result, output)
         return 1
 
     if stderr:
@@ -153,12 +143,26 @@ def main():
             metadata=metadata,
             traces=traces,
         )
-        _emit(result, args.output)
+        _emit(result, output)
         return 1
 
     result = {"success": True, "metadata": metadata, "traces": traces}
-    _emit(result, args.output)
+    _emit(result, output)
     return 0
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Instrument, compile, run, and normalize.")
+    ap.add_argument("input_file", help="Source file (.c or .py)")
+    ap.add_argument("-o", "--output", help="Output JSON path (default: stdout)")
+    args = ap.parse_args()
+
+    if not os.path.exists(args.input_file):
+        result = _make_error("input", f"File not found: {args.input_file}")
+        _emit(result, args.output)
+        return 1
+
+    return deal(args.input_file, args.output)
 
 
 def _emit(data, output_path):
