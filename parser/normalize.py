@@ -1,11 +1,13 @@
 import json
 import sys
+import argparse
+import os
 from collections.abc import Callable
 
 
 def create_type_ASSIGN(
     subject: str, value: str, address: str, line_number: int, stack_depth: int
-):
+) -> dict:
     return {
         "type": "ASSIGN",
         "subject": subject,
@@ -18,7 +20,7 @@ def create_type_ASSIGN(
 
 def create_type_BRANCH(
     subtype: str, condition: str, line_number: int, stack_depth: int
-):
+) -> dict:
     return {
         "type": "BRANCH",
         "subtype": subtype,
@@ -41,7 +43,7 @@ def create_type_CALL(*fields):
 
 def create_type_CONDITION(
     subject: str, condition_result: int, line_number: int, stack_depth: int
-):
+) -> dict:
     return {
         "type": "CONDITION",
         "subject": subject,
@@ -53,7 +55,7 @@ def create_type_CONDITION(
 
 def create_type_DECL(
     subject: str, value: str, address: str, line_number: int, stack_depth: int
-):
+) -> dict:
     return {
         "type": "DECL",
         "subject": subject,
@@ -70,7 +72,7 @@ def create_type_LOOP(
     condition_result: str,
     line_number: int,
     stack_depth: int,
-):
+) -> dict:
     result = {
         "type": "LOOP",
         "subtype": subtype,
@@ -86,7 +88,7 @@ def create_type_LOOP(
 
 def create_type_READ(
     subject: str, format_spec: str, address: str, line_number: int, stack_depth: int
-):
+) -> dict:
     return {
         "type": "READ",
         "subject": subject,
@@ -97,7 +99,7 @@ def create_type_READ(
     }
 
 
-def create_type_PARAM(subject: str, value: str, line_number: int):
+def create_type_PARAM(subject: str, value: str, line_number: int) -> dict:
     return {
         "type": "PARAM",
         "subject": subject,
@@ -113,7 +115,7 @@ def create_type_RETURN(
     line_number: int,
     stack_depth: int,
     format_spec: str = "",
-):
+) -> dict:
     result = {
         "type": "RETURN",
         "subtype": subtype,
@@ -128,7 +130,7 @@ def create_type_RETURN(
     return result
 
 
-def create_type_SWITCH(subject: str, value: str, line_number: int, stack_depth: int):
+def create_type_SWITCH(subject: str, value: str, line_number: int, stack_depth: int) -> dict:
     return {
         "type": "SWITCH",
         "subject": subject,
@@ -138,7 +140,7 @@ def create_type_SWITCH(subject: str, value: str, line_number: int, stack_depth: 
     }
 
 
-def create_type_CASE(label: str, line_number: int, stack_depth: int):
+def create_type_CASE(label: str, line_number: int, stack_depth: int) -> dict:
     return {
         "type": "CASE",
         "label": label,
@@ -154,7 +156,7 @@ def create_type_UPDATE(
     address: str,
     line_number: int,
     stack_depth: int,
-):
+) -> dict:
     return {
         "type": "UPDATE",
         "subject": subject,
@@ -168,7 +170,7 @@ def create_type_UPDATE(
 
 def create_type_TERNARY(
     subject: str, condition_result: int, line_number: int, stack_depth: int
-):
+) -> dict:
     return {
         "type": "TERNARY",
         "subject": subject,
@@ -178,11 +180,17 @@ def create_type_TERNARY(
     }
 
 
-def create_type_UNKNOWN(*args):
+def create_type_UNKNOWN(*args) -> dict:
     return {"type": "UNKNOWN", "args": args}
 
 
-def stdin_to_json(stdin_data: str):
+def generate_seed(meta_data: dict[str, str]) -> int:
+    print(meta_data)
+
+    return 12345678901234567890
+
+
+def stdin_to_json(stdin_data: str) -> dict[str, dict[str, str] | list[dict[str, any]]]:
     lines = stdin_data.strip().split("\n")
     metadata = {}
     traces = []
@@ -237,7 +245,16 @@ def stdin_to_json(stdin_data: str):
     # Return structure with metadata and traces
     result = {"metadata": metadata, "traces": traces}
 
-    return json.dumps(result, indent=4)
+    return result
+
+
+def fill_json(stdin_json, seed: int | None = None) -> str:
+    if seed == -1 or seed is None:
+        stdin_json["seed"] = generate_seed(stdin_json["metadata"])
+    elif seed is not None:
+        stdin_json["seed"] = seed
+
+    return json.dumps(stdin_json, indent=4)
 
 
 def read_from_stdin():
@@ -250,10 +267,42 @@ def read_from_stdin():
 
 
 def main():
-    output_path = "json_output.json"
+    ap = argparse.ArgumentParser(description="Instrument source code for tracing.")
+    ap.add_argument("json_file", help="Path to the source file")
+    ap.add_argument("-s", "--seed", help="Specify a seed for randomization (optional) [Cannot run with -r]", type=str)
+    ap.add_argument("-r", "--random", help="Overrides the set seed (optional) [Cannot run with -s]", type=bool, nargs='?', const=True, default=False)
+    args = ap.parse_args()
+
+    output_path = args.json_file
+
+    if not output_path:
+        print("Error: No output file specified.")
+        sys.exit(1)
+
+    if args.seed and args.random:
+        print("Error: Cannot use both -s/--seed and -r/--random options together.")
+        sys.exit(1)
+
+    seed = None
+    existing_data = None
+    if args.seed is not None:
+        if not (len(args.seed) >= 19 and len(args.seed) <= 20):
+            print(f"Error: Invalid seed value of {len(args.seed)}. Seeds are 19 or 20 characters long.")
+            sys.exit(1)
+        if not args.seed.isdigit():
+            print("Error: Seed must be a numeric string of 19 or 20 characters.")
+            sys.exit(1)
+        seed = int(args.seed)
+    else:
+        if os.path.exists(output_path) and not args.random:
+            with open(output_path, "r") as f:
+                existing_data = json.load(f)
+            seed = existing_data.get("seed", None)
+        else:
+            seed = -1
 
     with open(output_path, "w") as f:
-        f.write(stdin_to_json(read_from_stdin()))
+        f.write(fill_json(stdin_to_json(read_from_stdin()), seed))
 
 
 if __name__ == "__main__":
