@@ -56,14 +56,13 @@ class SceneManager {
         // Remove all default mouse inputs so we can reconfigure them
         this.camera.inputs.removeByType("ArcRotateCameraPointersInput");
 
-        // Re-add pointers input with Blender-style button mapping:
-        //   Middle mouse (1) = orbit
-        //   Shift + Middle mouse = pan (handled via multiTouchPanning + _useCtrlForPanning)
-        //   Left mouse (0) = nothing (reserved for picking/selecting)
+        // Re-add pointers input with button mapping:
+        //   Left mouse (0) = orbit
+        //   Shift + Left mouse = pan
         const pointersInput = new BABYLON.ArcRotateCameraPointersInput();
-        // Only middle-mouse-button orbits (button index 1)
-        pointersInput.buttons = [1];
-        // Shift + middle-mouse pans instead of orbiting
+        // Only left-mouse-button orbits (button index 0)
+        pointersInput.buttons = [0];
+        // Shift + left-mouse pans instead of orbiting
         pointersInput._useCtrlForPanning = false;   // don't require Ctrl
         pointersInput.panningSensibility = 200;
         this.camera.inputs.add(pointersInput);
@@ -126,7 +125,7 @@ class SceneManager {
     }
 
     /**
-     * Blender-style: Shift + Middle Mouse = Pan
+     * Shift + Left Mouse = Pan
      * We intercept pointer events to temporarily switch the camera into
      * panning mode when Shift is held, then switch back on release.
      */
@@ -142,12 +141,12 @@ class SceneManager {
         });
 
         // Before the camera processes a pointer-down, check Shift state.
-        // If Shift is held during a middle-click, temporarily set buttons
+        // If Shift is held during a left-click, temporarily set buttons
         // to [2] (right-click) which Babylon maps to panning.
         this.scene.onPrePointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
                 const evt = pointerInfo.event;
-                if (evt.button === 1 && shiftHeld) {
+                if (evt.button === 0 && shiftHeld) {
                     // Force Babylon to treat this as a pan (right-click equivalent)
                     this._pointersInput.buttons = [2];
                     // Simulate a right-click button so the camera input recognises panning
@@ -156,7 +155,7 @@ class SceneManager {
             }
             if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERUP) {
                 // Restore orbit mode for next interaction
-                this._pointersInput.buttons = [1];
+                this._pointersInput.buttons = [0];
             }
         });
     }
