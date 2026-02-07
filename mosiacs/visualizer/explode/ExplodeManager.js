@@ -85,6 +85,8 @@ class ExplodeManager {
     _findBuildingMesh(mesh) {
         let cur = mesh;
         while (cur) {
+            // Any mesh with _buildingData is an explodable building
+            if (cur._buildingData) return cur;
             if (cur.name && cur.name.startsWith('building_')) return cur;
             if (cur.name && cur.name.startsWith('shard_'))    return null;
             cur = cur.parent;

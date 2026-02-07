@@ -95,11 +95,11 @@ class SceneManager {
     }
 
     /**
-     * Reset camera to default position — looking at the top of the spiral
+     * Reset camera to default position — looking at the spiral city from above
      */
     resetCamera() {
-        this.camera.setPosition(new BABYLON.Vector3(25, 30, 25));
-        this.camera.setTarget(new BABYLON.Vector3(0, 10, 0));
+        this.camera.setPosition(new BABYLON.Vector3(20, 25, 20));
+        this.camera.setTarget(new BABYLON.Vector3(0, 5, 0));
     }
 
     /**
