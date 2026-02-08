@@ -202,13 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
         infoBtn.textContent = visible ? 'Show Controls' : 'Hide Controls';
     });
 
-    // Toggle animation button
-    const toggleBtn = document.getElementById('toggleAnimation');
-    toggleBtn.addEventListener('click', () => {
-        const isAnimating = visualizer.toggleAnimation();
-        toggleBtn.textContent = isAnimating ? 'Pause Animation' : 'Resume Animation';
-    });
-
     // Toggle causality web button (Phase 3 Part 3)
     const causalityBtn = document.getElementById('toggleCausality');
     causalityBtn.addEventListener('click', () => {
