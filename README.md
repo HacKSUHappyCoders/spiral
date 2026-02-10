@@ -1,5 +1,7 @@
 # Spiral
 
+![Video](https://youtu.be/WuXMocKx2D8)
+
 Traditional debuggers show walls of text. Spiral turns that into art.
 
 Spiral transforms C and Python source code into explorable 3D cities. Upload a file, and Spiral traces its execution, then renders every function call, loop, branch, and assignment as a building on a descending spiral you can fly through in your browser. Words become mosaics of spirals, buildings, balloons, and trees.
